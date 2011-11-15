@@ -33,6 +33,10 @@ createUGraph edges = accumArray (+) 0 bounds [(symIx e, 1) | e <- edges]
 vertices :: UGraph -> [Vertex]
 vertices gr = range (vertexBounds gr)
 
+-- all edges of a graph
+edges :: UGraph -> [Edge]
+edges g = concat [replicate x (pair v) | (v, x) <- assocs g, x /= 0]
+
 -- vertex indices
 vertexBounds :: UGraph -> Bounds
 vertexBounds gr = (l,h)
