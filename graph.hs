@@ -13,7 +13,7 @@ import Data.Array
 
 {--------------------------------------------------------------------------------
  -
- - Public interface 
+ - Public interface
  -
  -------------------------------------------------------------------------------}
 
@@ -67,7 +67,7 @@ degree v = sum . adjacency v
 -- symmetric indices
 newtype SymIx = SymIx { pair :: (Int, Int) } deriving (Eq, Ord, Show)
 instance Ix SymIx where
-    range ((SymIx (i1,j1)), (SymIx (i2,j2))) = 
+    range ((SymIx (i1,j1)), (SymIx (i2,j2))) =
         map SymIx [(x,y) | x <- range (i1,i2), y <- range (j1,j2), x >= y]
 
     inRange (x,y) i = x' <= hx && x' >= lx && y' <= hx && y' >= lx && x' >= y'
@@ -88,3 +88,41 @@ symIx (x,y) | x < y = SymIx (y,x)
 -- returns a row of the upper triangular adjacency matrix of the graph
 row :: Vertex -> UGraph -> [Int]
 row v gr = [x | (SymIx (i,j), x) <- assocs gr, j == v]
+
+{----------------------------------------------------------------------
+ -
+ - Isomorphisms and automorphisms of graphs
+ -
+ - Ref: Practical Graph Isomorphism - B.D.McKak 1981
+ -
+ ---------------------------------------------------------------------}
+
+type Cell = [Vertex]
+-- set of ordered disjoint non-empty cells of a set S with union P = S
+type Partition = [Cell]
+
+-- safe partition constructor
+partition :: Bounds -> [Cell] -> Partition
+partition bnds c | concat c == [fst bnds..snd bnds] = c
+                 | otherwise = error $ "parition: given cells don't form a union on"
+                               ++ show bnds
+
+unitPartition :: Bounds -> Partition
+unitPartition bounds = [range bounds]
+
+-- a cell is trivial if it has cardinality = 1
+isTrivial :: Cell -> Bool
+isTrivial = (==) 1 . length
+
+-- a partition is discrete if all cells are trivial (cardinality = 1)
+isDiscrete :: Partition -> Bool
+isDiscrete = all (isTrivial)
+
+isUnit :: Partition -> Bool
+isUnit = (==) 1 . length
+
+fix :: Partition -> [Vertex]
+fix = concat . filter isTrivial
+
+supp :: Partition -> [Vertex]
+supp = concat . filter (not . isTrivial)
