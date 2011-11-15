@@ -1,0 +1,5 @@
+FeynGraph
+---------
+
+Work in progress for a general Feynman diagram generator, no real
+functionality and a project to learn Haskell for now.
