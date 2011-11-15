@@ -34,7 +34,11 @@ createUGraph edges = accumArray (+) 0 bounds [(symIx e, 1) | e <- edges]
     where bounds = (symIx (minimum vl, minimum vl), symIx (maximum vl, maximum vl))
           vl = foldr (\(x,y) acc -> x:y:acc) [] edges
 
----- generate all graphs for a given degree sequence [(Degree, #vertices)]
+-- TODO: separate methods to generate undirected graphs and
+-- multigraphs
+
+-- generate all graph for a given degree sequence [(Degree, #vertices)]
+-- TODO: Should return [UGraph]
 degreeGraphs :: [(Int,Int)] -> [AdjMat]
 degreeGraphs degreeSeq = map snd reduction
     where p = initPartition degreeSeq
@@ -125,6 +129,8 @@ row v gr = [x | (SymIx (i,j), x) <- assocs gr, j == v]
  - (not) connected to n_j. The possible permutations of m connections
  - from a vertex of degree d_i=m to vertices in EC are called
  - m-sequences
+ -
+ - TODO: extend to multigraphs
  -
  ---------------------------------------------------------------------}
 
