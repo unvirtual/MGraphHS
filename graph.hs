@@ -53,6 +53,14 @@ allGraphs nvert degrees = undefined
 
 {- Graph properties -}
 
+-- check if any two vertices are connected directly by more than one edge
+isMultiGraph :: UGraph -> Bool
+isMultiGraph = any (1 <) . elems
+
+-- check for edges starting and ending in the same vertex
+hasLoops :: UGraph -> Bool
+hasLoops g = any ((/=) 0) $ [x | (SymIx (i,j), x) <- assocs g, i == j]
+
 -- all vertices of a graph
 vertices :: UGraph -> [Vertex]
 vertices gr = range (vertexBounds gr)
@@ -115,7 +123,7 @@ row v gr = [x | (SymIx (i,j), x) <- assocs gr, j == v]
 
 {----------------------------------------------------------------------
  -
- - Graph generation
+ - Graph generation (no multigraph support yet)
  -
  - Given a node degree partition D = {(N_1,d_1),..,(N_k,d_k)) with d_1
  - >= d_2 >= ..  for N_i nodes of degree d_i, the graph is constructed
