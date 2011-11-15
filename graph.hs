@@ -3,7 +3,7 @@ module Graph ( Vertex
              , Bounds
              , UGraph
              , vertices
-             , vertexRange
+             , vertexBounds
              , adjacency
              , adjVertices
              , degree) where
@@ -31,26 +31,22 @@ createUGraph edges = accumArray (+) 0 bounds [(symIx e, 1) | e <- edges]
 
 -- all vertices of a graph
 vertices :: UGraph -> [Vertex]
-vertices gr = range r
-    where r = vertexRange gr
+vertices gr = range (vertexBounds gr)
 
 -- vertex indices
-vertexRange :: UGraph -> (Int, Int)
-vertexRange gr = (l,h)
-    where (lp,hp) = bounds gr
-          (l,_) = pair lp
-          (h,_) = pair hp
+vertexBounds :: UGraph -> Bounds
+vertexBounds gr = (l,h)
+    where (SymIx (l,_), SymIx (h,_)) = bounds gr
 
 -- vertices adjacent to another vertex in a graph
 adjVertices :: Vertex -> UGraph -> [Vertex]
-adjVertices v gr = map (snd) $ filter ((/=) 0 . snd) $ zip [l..] (adjacency v gr)
-    where (l,h) = vertexRange gr
+adjVertices v gr = map (snd) $ filter ((/=) 0 . snd) $ zip verts (adjacency v gr)
+    where verts = vertices gr
 
 -- adjacency for a vertex in a graph
 adjacency :: Vertex -> UGraph -> [Int]
 adjacency v gr = map (gr!) indices
-    where indices = matRowIx (l,h) v
-          (SymIx (l,_), SymIx (h,_)) = bounds gr
+    where indices = matRowIx (vertexBounds gr) v
           matRowIx bnds i = map (\x -> symIx (x,i)) $ range bnds
 
 -- return the degree of a vertex
