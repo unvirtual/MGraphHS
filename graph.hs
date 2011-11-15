@@ -89,6 +89,23 @@ symIx (x,y) | x < y = SymIx (y,x)
 row :: Vertex -> UGraph -> [Int]
 row v gr = [x | (SymIx (i,j), x) <- assocs gr, j == v]
 
+
+{----------------------------------------------------------------------
+ -
+ - Graph generation
+ -
+ ---------------------------------------------------------------------}
+
+-- generate all graphs for a given degree sequence [(Degree, #vertices)]
+degreeGraphs :: [(Int,Int)] -> [UGraph]
+degreeGraphs degSeq = undefined
+
+-- generate all graphs on `n` vertices with all possible combinations
+-- of degrees `degrees`
+allGraphs :: Int -> [Int] -> [UGraph]
+allGraphs nvert degrees = undefined
+
+
 {----------------------------------------------------------------------
  -
  - Isomorphisms and automorphisms of graphs
