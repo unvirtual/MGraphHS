@@ -3,6 +3,7 @@ module Graph ( Vertex
              , Bounds
              , UGraph
              , vertices
+             , edges
              , vertexBounds
              , adjacency
              , adjVertices
