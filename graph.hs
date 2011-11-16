@@ -263,7 +263,7 @@ supp = concat . filter (not . isTrivial)
  ---------------------------------------------------------------------}
 
 -- for a given y = (y_1,...,y_n) and a bound m, find all vectors
--- x = (x_1,...,x_n) such that |x| = m
+-- x = (x_1,...,x_n) such that |x| = m and x_i <= y_i
 --
 -- TODO: Extend to a -> ([a] -> Bool) -> [a] -> [[a]] to and
 -- filter/order according to the given predicate
