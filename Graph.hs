@@ -80,7 +80,7 @@ vertexBounds gr = (l,h)
 
 -- vertices adjacent to another vertex in a graph
 adjVertices :: Vertex -> UGraph -> [Vertex]
-adjVertices v gr = map (snd) $ filter ((/=) 0 . snd) $ zip verts (adjacency v gr)
+adjVertices v gr = map (fst) $ filter ((/=) 0 . snd) $ zip verts (adjacency v gr)
     where verts = vertices gr
 
 -- adjacency for a vertex in a graph
