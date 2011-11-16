@@ -2,6 +2,10 @@ module Graph ( Vertex
              , Edge
              , Bounds
              , UGraph
+             , createUGraph
+             , degreeGraphs
+             , isMultiGraph
+             , hasLoops
              , vertices
              , edges
              , vertexBounds
