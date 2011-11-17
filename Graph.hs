@@ -303,6 +303,8 @@ genDegGraphs (p, gr) | s /= [[]] = (concatMap genDegGraphs red)
 
 type Cell = [Vertex]
 -- set of ordered disjoint non-empty cells of a set S with union P = S
+-- Use mutable arrays of mutable arrays as many updates of the
+-- elements are necessary
 type Partition = [Cell]
 
 -- safe partition constructor
@@ -331,6 +333,20 @@ fix = concat . filter isTrivial
 supp :: Partition -> [Vertex]
 supp = concat . filter (not . isTrivial)
 
+refineCell :: UGraph -> Cell -> Cell -> Partition -> (Partition, Partition)
+refineCell gr c1 c2 p
+    | isDiscrete xp = ([c1], p)
+    | otherwise = (xp, neww ++ rest)
+        where xp = splitCell gr c1 c2
+              (maxX, rest) = splitLongest xp
+              neww = replaceElem c1 maxX p
+
+-- refine a single cell with respect to another one
+splitCell :: UGraph -> Cell -> Cell -> Partition
+splitCell gr c = groupSort (\x -> cellDegree gr c x)
+    where -- number of vertices in a cell adjacent to a given vertex
+          cellDegree :: UGraph -> Cell -> Vertex -> Int
+          cellDegree gr c v = sum $ map fromEnum $ map (isNeighbour gr v) c
 
 {----------------------------------------------------------------------
  -
