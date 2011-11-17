@@ -55,7 +55,7 @@ degreeGraphs degreeSeq = map adjMatToUGraph $ map snd reduction
           adjMatToUGraph m = createUGraph (amEdges m)
               where amEdges m = [(fst x, y) | x <- zz, y <- snd x]
                                 where zz = zip [0..] m
-  
+
 -- generate all graphs on `n` vertices with all possible combinations
 -- of degrees `degrees`
 allGraphs :: Int -> [Int] -> [UGraph]
@@ -89,7 +89,7 @@ adjVertices :: Vertex -> UGraph -> [Vertex]
 adjVertices v gr = map (fst) $ filter ((/=) 0 . snd) $ zip verts (adjacency v gr)
     where verts = vertices gr
 
--- adjacency for a vertex in a graph (slowest component in dfs) 
+-- adjacency for a vertex in a graph (slowest component in dfs)
 -- TODO: avoid construction of list somehow
 adjacency :: Vertex -> UGraph -> [Int]
 adjacency v gr = map (gr!) indices
@@ -172,13 +172,12 @@ rmDuplVertices :: Forest Vertex -> State Visited (Forest Vertex)
 rmDuplVertices [] = return []
 rmDuplVertices ((Node v rest):frst) = do
     visited <- get
-    if not (visited!v) then do
-        modify (\x -> x // [(v,True)])
-        redRest <- rmDuplVertices rest
-        redFrst <- rmDuplVertices frst
-        return ((Node v redRest):redFrst)
-    else do
-        rmDuplVertices frst
+    case (visited!v) of
+        False -> do modify (\x -> x // [(v,True)])
+                    redRest <- rmDuplVertices rest
+                    redFrst <- rmDuplVertices frst
+                    return ((Node v redRest):redFrst)
+        True  -> do rmDuplVertices frst
 
 -- perform depth-first search on a graph
 depthFirst :: UGraph -> [Vertex] -> Forest Vertex
