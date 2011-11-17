@@ -4,6 +4,7 @@ module Graph ( Vertex
              , UGraph
              , createUGraph
              , degreeGraphs
+             , adjMatToUGraph
              , isMultiGraph
              , hasLoops
              , vertices
@@ -42,10 +43,7 @@ createUGraph edges = accumArray (+) 0 bounds [(symIx e, 1) | e <- edges]
     where bounds = (symIx (minimum vl, minimum vl), symIx (maximum vl, maximum vl))
           vl = foldr (\(x,y) acc -> x:y:acc) [] edges
 
--- TODO: separate methods to generate undirected graphs and
--- multigraphs
-
--- generate all graph for a given degree sequence [(Degree, #vertices)]
+-- generate all graphs for a given degree sequence [(Degree, #vertices)]
 -- TODO: Should return [UGraph]
 degreeGraphs :: [(Int,Int)] -> [AdjMat]
 degreeGraphs degreeSeq = map snd reduction
@@ -53,6 +51,12 @@ degreeGraphs degreeSeq = map snd reduction
           reduction = genDegGraphs (p, initIAdj (ecPartitionVertices p))
           initIAdj :: Int -> AdjMat
           initIAdj n = replicate n []
+
+-- temporary helper function
+adjMatToUGraph :: AdjMat -> UGraph
+adjMatToUGraph m = createUGraph (amEdges m)
+    where amEdges m = [(fst x, y) | x <- zz, y <- snd x]
+                      where zz = zip [0..] m
 
 -- generate all graphs on `n` vertices with all possible combinations
 -- of degrees `degrees`
@@ -200,7 +204,13 @@ depthFirst g v = filterForest bnds (map (flip uGraphToTree g) v) falseArr
  - from a vertex of degree d_i=m to vertices in EC are called
  - m-sequences
  -
- - TODO: extend to multigraphs
+ - The resulting list of integrals contains both connected and
+ - disconnected graphs. Moreover, it still contains isomorphic graphs
+ - and has to be filter for a list of unique graphs.
+ -
+ - TODO: extend to multigraphs containing loops
+ - TODO: improve by checking for canonic adjacency matrices during
+ -       construction
  -
  ---------------------------------------------------------------------}
 
