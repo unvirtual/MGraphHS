@@ -89,6 +89,10 @@ adjVertices :: Vertex -> UGraph -> [Vertex]
 adjVertices v gr = map (fst) $ filter ((/=) 0 . snd) $ zip verts (adjacency v gr)
     where verts = vertices gr
 
+-- checks if v1 and v2 are directly connected
+isNeighbour :: UGraph -> Vertex -> Vertex -> Bool
+isNeighbour gr v1 v2 = v1 `elem` (adjVertices v2 gr)
+
 -- adjacency for a vertex in a graph (slowest component in dfs)
 -- TODO: avoid construction of list somehow
 adjacency :: Vertex -> UGraph -> [Int]
