@@ -4,7 +4,6 @@ module Graph ( Vertex
              , UGraph
              , createUGraph
              , degreeGraphs
-             , adjMatToUGraph
              , isMultiGraph
              , hasLoops
              , vertices
@@ -45,19 +44,18 @@ createUGraph edges = accumArray (+) 0 bounds [(symIx e, 1) | e <- edges]
 
 -- generate all graphs for a given degree sequence [(Degree, #vertices)]
 -- TODO: Should return [UGraph]
-degreeGraphs :: [(Int,Int)] -> [AdjMat]
-degreeGraphs degreeSeq = map snd reduction
+degreeGraphs :: [(Int,Int)] -> [UGraph]
+degreeGraphs degreeSeq = map adjMatToUGraph $ map snd reduction
     where p = initPartition degreeSeq
           reduction = genDegGraphs (p, initIAdj (ecPartitionVertices p))
           initIAdj :: Int -> AdjMat
           initIAdj n = replicate n []
-
--- temporary helper function
-adjMatToUGraph :: AdjMat -> UGraph
-adjMatToUGraph m = createUGraph (amEdges m)
-    where amEdges m = [(fst x, y) | x <- zz, y <- snd x]
-                      where zz = zip [0..] m
-
+          -- temporary helper function
+          adjMatToUGraph :: AdjMat -> UGraph
+          adjMatToUGraph m = createUGraph (amEdges m)
+              where amEdges m = [(fst x, y) | x <- zz, y <- snd x]
+                                where zz = zip [0..] m
+  
 -- generate all graphs on `n` vertices with all possible combinations
 -- of degrees `degrees`
 allGraphs :: Int -> [Int] -> [UGraph]
@@ -91,7 +89,8 @@ adjVertices :: Vertex -> UGraph -> [Vertex]
 adjVertices v gr = map (fst) $ filter ((/=) 0 . snd) $ zip verts (adjacency v gr)
     where verts = vertices gr
 
--- adjacency for a vertex in a graph
+-- adjacency for a vertex in a graph (slowest component in dfs) 
+-- TODO: avoid construction of list somehow
 adjacency :: Vertex -> UGraph -> [Int]
 adjacency v gr = map (gr!) indices
     where indices = matRowIx (vertexBounds gr) v
@@ -146,6 +145,8 @@ row v gr = [x | (SymIx (i,j), x) <- assocs gr, j == v]
 {--------------------------------------------------------------------------------
  -
  - Depth first search on graphs and related
+ -
+ - TODO: use mutable array for performance
  -
  -------------------------------------------------------------------------------}
 
