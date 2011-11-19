@@ -1,0 +1,11 @@
+Name: FeynGraph
+Version: 0.0.0
+Cabal-Version: >= 1.8
+Author: unvirtual
+Synopsis: WIP for a Feynman diagram generator
+Build-type: Simple
+
+Library
+    Build-Depends: base,array,containers,mtl
+    Exposed-modules:
+        Graph, Util, Morphisms, DFS, Generate
