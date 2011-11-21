@@ -1,6 +1,7 @@
 module Util where
 
 import Data.List
+import Data.Array
 {----------------------------------------------------------------------
  -
  - Util
