@@ -44,6 +44,13 @@ isIsomorphic g1 g2 = (v1 == v2)
  -
  ---------------------------------------------------------------------}
 
+-- now we can define the UGraph to be instances of Eq and Ord
+instance Eq UGraph where
+    x == y = isIsomorphic x y
+
+instance Ord UGraph where
+    x <= y = getArray x <= getArray y
+
 type Cell = [Vertex]
 -- set of ordered disjoint non-empty cells of a set S with union P = S
 -- Use mutable arrays of mutable arrays as many updates of the
