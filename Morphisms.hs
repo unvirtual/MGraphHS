@@ -101,7 +101,7 @@ orderedPartition gr w v = groupSort (\x -> cellDegree gr w x) v
 
 -- number of vertices in a cell adjacent to a given vertex
 cellDegree :: UGraph -> Cell -> Vertex -> Int
-cellDegree gr c v = sum $ map fromEnum $ map (isNeighbour gr v) c
+cellDegree gr c v = sum $ map (degreeNeighbour gr v) c
 
 -- the scalar product pi.v of a partition with a vertex is defined as
 -- extracting the vertex from its cell and inserting it as a trivial
