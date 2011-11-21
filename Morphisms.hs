@@ -123,11 +123,11 @@ orthoProject gr pi v = refine gr (parallelProject pi v) [[v]]
 -- next level of descendants of given parition
 descendantPartitions :: UGraph -> Partition -> [Partition]
 descendantPartitions g p = dp g p (verts p)
-    where verts (p:ps) | isTrivial p = verts ps
+    where verts [] = []
+          verts (p:ps) | isTrivial p = verts ps
                        | otherwise = p
-          verts [] = []
-          dp g p (v:vs) = (orthoProject g p v:dp g p vs)
           dp _ _ [] = []
+          dp g p (v:vs) = (orthoProject g p v:dp g p vs)
 
 -- build the search tree
 partitionTree :: UGraph -> Partition -> Tree Partition
