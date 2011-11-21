@@ -11,6 +11,7 @@ module Graph ( Vertex
              , vertexBounds
              , adjacency
              , adjVertices
+             , permuteUGraphSymm
              , degree) where
 
 import Data.Array
@@ -124,11 +125,11 @@ permuteUGraphSymm p g = newgraph
           (SymIx (l,_), SymIx (u,_)) = bounds g
 
 permuteRows :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
-permuteRows x m = m // [a | k <- [l..u], (i,n) <- x, a <- [((i,k), m!(n,k)), ((n,k), m!(i,k))]]
+permuteRows x m = m // [a | k <- [l..u], (i,n) <- x, a <- [((i,k), m!(n,k))]]
     where ((_,l), (_,u)) = bounds m
 
 permuteCols :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
-permuteCols x m = m // [a | k <- [l..u], (i,n) <- x, a <- [((k,i), m!(k,n)), ((k,n), m!(k,i))]]
+permuteCols x m = m // [a | k <- [l..u], (i,n) <- x, a <- [((k,i), m!(k,n))]]
     where ((l,_), (u,_)) = bounds m
 
 permuteSymmetric :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
