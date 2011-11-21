@@ -15,7 +15,7 @@ import Data.Bits
  - Ref: Practical Graph Isomorphism - B.D.McKak 1981
  -
  ---------------------------------------------------------------------}
- 
+
 {---------------------------------------------------------------------
  -
  - Public exports
@@ -105,7 +105,7 @@ cellDegree gr c v = sum $ map fromEnum $ map (isNeighbour gr v) c
 
 -- the scalar product pi.v of a partition with a vertex is defined as
 -- extracting the vertex from its cell and inserting it as a trivial
--- cell before the matching cell 
+-- cell before the matching cell
 parallelProject :: Partition -> Vertex -> Partition
 parallelProject [] _ = []
 parallelProject (p:ps) v | (not . isTrivial) p && vInCell v p = ([v]:extractV v p:ps)
@@ -130,20 +130,35 @@ descendantPartitions g p = dp g p (verts p)
           dp _ _ [] = []
 
 -- build the search tree
-partitionTree :: UGraph -> Partition -> Tree (Partition, Int32)
+partitionTree :: UGraph -> Partition -> Tree Partition
 partitionTree g p = buildTree (refine g p p)
-    where buildTree p = Node (p, indicator g p) (map (buildTree) (descendantPartitions g p))
+    where buildTree p = Node p (map (buildTree) (descendantPartitions g p))
+
+-- chain all the paths of the tree
+paths :: Tree Partition -> [[Partition]]
+paths = map reverse . treePaths []
+
+treePaths :: [Partition] -> Tree Partition -> [[Partition]]
+treePaths np (Node p []) = [p:np]
+treePaths np (Node p forest) = concatMap (treePaths (p:np) ) forest
+
+-- the canonic labelling is obtained from the minimal value of
+-- indicators for all paths between the root node and leaves
+canonicLabels :: UGraph -> Partition -> Partition
+canonicLabels g = snd . minimum .  map indptuple . paths . partitionTree g
+    where indptuple x = (map (indicator g) x, last x)
+
+-- permute the edjacency matrix and return the relabeled graph
+canonicGraph :: UGraph -> Partition -> UGraph
+canonicGraph g p = permuteUGraphSymm labels g
+    where labels = zip (vertices g) (concat $ canonicLabels g p)
 
 -- trivial indicator function (hash for given partition)
 indicator :: UGraph -> Partition -> Int32
 indicator g = orderedHash . map unorderedHash . inner
     where inner [] = []
           inner (p:ps) = (map (fromIntegral . cellDegree g p) (vertices g) : inner ps)
-
--- orer independent hash of a vector
-unorderedHash :: [Int32] -> Int32
-unorderedHash = foldl (xor) 0
-
--- rotating hash
-orderedHash :: [Int32] -> Int32
-orderedHash = foldl (\acc x -> ((shift acc 7) `xor` (shift acc (-28)) `xor` x)) 0
+          -- order independent hash of a vector
+          unorderedHash = foldl (xor) 0
+          -- rotating hash
+          orderedHash = foldl (\acc x -> ((shift acc 7) `xor` (shift acc (-28)) `xor` x)) 0
