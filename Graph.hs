@@ -2,7 +2,9 @@ module Graph ( Vertex
              , Edge
              , Bounds
              , UGraph
+             , getArray
              , isNeighbour
+             , degreeNeighbour
              , createUGraph
              , isMultiGraph
              , hasLoops
@@ -31,13 +33,13 @@ type Edge = (Vertex, Vertex)
 type Bounds = (Vertex, Vertex)
 -- undirected unlabeled graph represented by a symmetric adjacency
 -- matrix
-type UGraph = Array SymIx Int
+newtype UGraph = UGraph { getArray :: Array SymIx Int } deriving (Show)
 
 {- Graph Generation -}
 
 -- build a graph from the given edges
 createUGraph :: [Edge] -> UGraph
-createUGraph edges = accumArray (+) 0 bounds [(symIx e, 1) | e <- edges]
+createUGraph edges = UGraph $ accumArray (+) 0 bounds [(symIx e, 1) | e <- edges]
     where bounds = (symIx (minimum vl, minimum vl), symIx (maximum vl, maximum vl))
           vl = foldr (\(x,y) acc -> x:y:acc) [] edges
 
@@ -45,11 +47,11 @@ createUGraph edges = accumArray (+) 0 bounds [(symIx e, 1) | e <- edges]
 
 -- check if any two vertices are connected directly by more than one edge
 isMultiGraph :: UGraph -> Bool
-isMultiGraph = any (1 <) . elems
+isMultiGraph = any (1 <) . elems . getArray
 
 -- check for edges starting and ending in the same vertex
 hasLoops :: UGraph -> Bool
-hasLoops g = any ((/=) 0) $ [x | (SymIx (i,j), x) <- assocs g, i == j]
+hasLoops g = any ((/=) 0) $ [x | (SymIx (i,j), x) <- assocs $ getArray g, i == j]
 
 -- all vertices of a graph
 vertices :: UGraph -> [Vertex]
@@ -57,28 +59,28 @@ vertices gr = range (vertexBounds gr)
 
 -- all edges of a graph
 edges :: UGraph -> [Edge]
-edges g = concat [replicate x (pair v) | (v, x) <- assocs g, x /= 0]
+edges g = concat [replicate x (pair v) | (v, x) <- assocs $ getArray g, x /= 0]
 
 -- vertex indices
 vertexBounds :: UGraph -> Bounds
 vertexBounds gr = (l,h)
-    where (SymIx (l,_), SymIx (h,_)) = bounds gr
+    where (SymIx (l,_), SymIx (h,_)) = bounds $ getArray gr
 
 -- vertices adjacent to another vertex in a graph
 adjVertices :: Vertex -> UGraph -> [Vertex]
-adjVertices v gr = map (fst) $ filter ((/=) 0 . snd) $ zip verts (adjacency v gr)
-    where verts = vertices gr
+adjVertices v g = [x | x <- (vertices g), (getArray g)!(symIx (x,v)) /= 0]
 
 -- checks if v1 and v2 are directly connected
 isNeighbour :: UGraph -> Vertex -> Vertex -> Bool
 isNeighbour gr v1 v2 = v1 `elem` (adjVertices v2 gr)
 
+degreeNeighbour :: UGraph -> Vertex -> Vertex -> Int
+degreeNeighbour g v1 v2 = (getArray g)!(symIx (v1,v2))
+
 -- adjacency for a vertex in a graph (slowest component in dfs)
 -- TODO: avoid construction of list somehow
 adjacency :: Vertex -> UGraph -> [Int]
-adjacency v gr = map (gr!) indices
-    where indices = matRowIx (vertexBounds gr) v
-          matRowIx bnds i = map (\x -> symIx (x,i)) $ range bnds
+adjacency v g = [(getArray g)!(symIx (x,v)) | x <- (vertices g)]
 
 -- return the degree of a vertex
 degree :: Vertex -> UGraph -> Int
@@ -113,16 +115,16 @@ symIx (x,y) | x < y = SymIx (y,x)
 
 -- returns a row of the upper triangular adjacency matrix of the graph
 row :: Vertex -> UGraph -> [Int]
-row v gr = [x | (SymIx (i,j), x) <- assocs gr, j == v]
+row v gr = [x | (SymIx (i,j), x) <- assocs $ getArray gr, j == v]
 
 -- perform permutation on UGraph
 -- TODO: Replace this *awful* temp solution
 permuteUGraphSymm :: [(Int,Int)] -> UGraph -> UGraph
-permuteUGraphSymm p g = newgraph
-    where arr = array ((l,l), (u,u)) [((x,y), g!(symIx(x,y))) | x <- [l..u], y <- [l..u]]
+permuteUGraphSymm p g = UGraph $ newgraph
+    where arr = array ((l,l), (u,u)) [((x,y), (getArray g)!(symIx(x,y))) | x <- [l..u], y <- [l..u]]
           newarr = permuteSymmetric p arr
           newgraph = array (SymIx (l,l), SymIx (u,u)) [(symIx (x,y), newarr!(x,y)) | x <- [l..u], y <- [l..u]]
-          (SymIx (l,_), SymIx (u,_)) = bounds g
+          (SymIx (l,_), SymIx (u,_)) = bounds $ getArray g
 
 permuteRows :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
 permuteRows x m = m // [a | k <- [l..u], (i,n) <- x, a <- [((i,k), m!(n,k))]]
