@@ -114,6 +114,26 @@ symIx (x,y) | x < y = SymIx (y,x)
 row :: Vertex -> UGraph -> [Int]
 row v gr = [x | (SymIx (i,j), x) <- assocs gr, j == v]
 
+-- perform permutation on UGraph
+-- TODO: Replace this *awful* temp solution
+permuteUGraphSymm :: [(Int,Int)] -> UGraph -> UGraph
+permuteUGraphSymm p g = newgraph
+    where arr = array ((l,l), (u,u)) [((x,y), g!(symIx(x,y))) | x <- [l..u], y <- [l..u]]
+          newarr = permuteSymmetric p arr
+          newgraph = array (SymIx (l,l), SymIx (u,u)) [(symIx (x,y), newarr!(x,y)) | x <- [l..u], y <- [l..u]]
+          (SymIx (l,_), SymIx (u,_)) = bounds g
+
+permuteRows :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
+permuteRows x m = m // [a | k <- [l..u], (i,n) <- x, a <- [((i,k), m!(n,k)), ((n,k), m!(i,k))]]
+    where ((_,l), (_,u)) = bounds m
+
+permuteCols :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
+permuteCols x m = m // [a | k <- [l..u], (i,n) <- x, a <- [((k,i), m!(k,n)), ((k,n), m!(k,i))]]
+    where ((l,_), (u,_)) = bounds m
+
+permuteSymmetric :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
+permuteSymmetric x = permuteRows x . permuteCols x
+
 
 
 
