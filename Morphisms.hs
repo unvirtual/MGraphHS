@@ -1,4 +1,4 @@
-module Morphisms (refine) where
+module Morphisms (refine, canonicGraph, isIsomorphic) where
 
 import Graph
 import Util
@@ -27,6 +27,16 @@ refine :: UGraph -> Partition -> [Cell] -> Partition
 refine gr pi [] = pi
 refine gr pi (w:ws) = refine gr pinew wsnew
     where (pinew, wsnew) = refinePi gr pi w ws
+
+-- permute the adjacency matrix and return the relabeled graph
+canonicGraph :: UGraph -> Partition -> UGraph
+canonicGraph g p = permuteUGraphSymm labels g
+    where labels = zip (vertices g) (concat $ canonicLabels g p)
+
+isIsomorphic :: UGraph -> UGraph -> Bool
+isIsomorphic g1 g2 = (v1 == v2)
+                     && (getArray $ canonicGraph g1 [v1]) == (getArray $ canonicGraph g2 [v2])
+                     where (v1,v2) = (vertices g1, vertices g2)
 
 {---------------------------------------------------------------------
  -
@@ -147,11 +157,6 @@ treePaths np (Node p forest) = concatMap (treePaths (p:np) ) forest
 canonicLabels :: UGraph -> Partition -> Partition
 canonicLabels g = snd . minimum .  map indptuple . paths . partitionTree g
     where indptuple x = (map (indicator g) x, last x)
-
--- permute the edjacency matrix and return the relabeled graph
-canonicGraph :: UGraph -> Partition -> UGraph
-canonicGraph g p = permuteUGraphSymm labels g
-    where labels = zip (vertices g) (concat $ canonicLabels g p)
 
 -- trivial indicator function (hash for given partition)
 indicator :: UGraph -> Partition -> Int32
