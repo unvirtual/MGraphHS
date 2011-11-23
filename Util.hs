@@ -19,11 +19,14 @@ boundSequences m x | m <= sum x = (fByM . sequence . ranges) x
     where fByM = filter (\x -> sum x == m)
           ranges = map (\x -> [0..x])
 
+-- number of occurences of unique elements in a list
+occurences :: (Ord a) => [a] -> [(a, Int)]
+occurences = map (\xs@(x:_) -> (x, length xs)) . group . reverse . sort
 
 -- append a list `e` to the list at position `n` of `list`
-appendAtNth :: (Show a) => Int -> [a] -> [[a]] -> [[a]]
-appendAtNth n e list | length list > n = x ++ [(y++e)] ++ xs
-                     | otherwise = error $ "appendAtNth: could not append"
+appendsortedAtNth :: (Show a, Ord a) => Int -> [a] -> [[a]] -> [[a]]
+appendsortedAtNth n e list | length list > n = x ++ [sort (y++e)] ++ xs
+                           | otherwise = error $ "appendAtNth: could not append"
     where (x,y:xs) = splitAt n list
 
 -- sort and group a list by the given function

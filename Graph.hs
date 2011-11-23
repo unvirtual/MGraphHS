@@ -136,7 +136,3 @@ permuteCols x m = m // [a | k <- [l..u], (i,n) <- x, a <- [((k,i), m!(k,n))]]
 
 permuteSymmetric :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
 permuteSymmetric x = permuteRows x . permuteCols x
-
-
-
-
