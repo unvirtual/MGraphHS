@@ -28,9 +28,10 @@ import Data.Bits
 
 -- refine a partition with respect to another partition
 refine :: UGraph -> Partition -> [Cell] -> Partition
-refine gr pi [] = pi
-refine gr pi (w:ws) = refine gr pinew wsnew
-    where (pinew, wsnew) = refinePi gr pi w ws
+refine gr pi ww = case ww of
+    [] -> pi
+    (w:ws) -> refine gr pinew wsnew
+              where (pinew, wsnew) = refinePi gr pi w ws
 
 -- permute the adjacency matrix and return the relabeled graph
 canonicGraph :: UGraph -> Partition -> UGraph
@@ -38,9 +39,9 @@ canonicGraph g p = permuteUGraphSymm labels g
     where labels = zip (vertices g) (concat $ canonicLabels g p)
 
 isIsomorphic :: UGraph -> UGraph -> Bool
-isIsomorphic g1 g2 = (v1 == v2)
-                     && (getArray $ canonicGraph g1 [v1]) == (getArray $ canonicGraph g2 [v2])
+isIsomorphic g1 g2 = (v1 == v2) && arr g1 v1 == arr g2 v2
                      where (v1,v2) = (vertices g1, vertices g2)
+                           arr g v = getArray $ canonicGraph g [v]
 
 {---------------------------------------------------------------------
  -
