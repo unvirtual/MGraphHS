@@ -115,7 +115,7 @@ connections p order = concatMap (con p) $ arcSeq order p
 connectionsWLoops :: ECPartition -> Int -> [(Int, [[ECNodeSelection]])]
 connectionsWLoops x m = filter prune $ map (conMap x m) [0,2..m]
     where prune s = case s of
-                        (0,[[]]) -> False
+                        (v,[[]]) -> if (v < m) then False else True
                         _        -> True
           conMap x m n = (n, connections x (m-n))
 
