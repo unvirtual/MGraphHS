@@ -39,7 +39,9 @@ import Data.List
 
 degreeGraphs :: [(Int,Int)] -> [UGraph]
 degreeGraphs degreeSeq = map adjMatToUGraph $ map snd reduction
-    where p = initPartition degreeSeq
+    where dsClean = sortBy (\x y -> fst x `compare` fst y)
+                    $ filter (\(x,y) -> (x /= 0) && (y /= 0)) degreeSeq
+          p = initPartition dsClean
           red =  genDegGraphs (p, initIAdj (ecPartitionVertices p))
           reduction =  filter (\x -> any (\y -> y /= []) (snd x)) $ red
 
