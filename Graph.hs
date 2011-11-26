@@ -75,7 +75,9 @@ isNeighbour :: UGraph -> Vertex -> Vertex -> Bool
 isNeighbour gr v1 v2 = v1 `elem` (adjVertices v2 gr)
 
 degreeNeighbour :: UGraph -> Vertex -> Vertex -> Int
-degreeNeighbour g v1 v2 = (getArray g)!(symIx (v1,v2))
+degreeNeighbour g v1 v2 | v1 == v2 = -adj
+                        | otherwise = adj
+    where adj = (getArray g)!(symIx (v1,v2))
 
 -- adjacency for a vertex in a graph (slowest component in dfs)
 -- TODO: avoid construction of list somehow
@@ -84,7 +86,8 @@ adjacency v g = [(getArray g)!(symIx (x,v)) | x <- (vertices g)]
 
 -- return the degree of a vertex
 degree :: Vertex -> UGraph -> Int
-degree v = sum . adjacency v
+degree v g = (adj!!v) +  (sum $ adj)
+    where adj = adjacency v g
 
 {--------------------------------------------------------------------------------
  -
