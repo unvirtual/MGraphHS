@@ -12,7 +12,6 @@ import Data.Bits
  -
  - Isomorphisms and automorphisms of graphs
  -
- - TODO: Mutligraph isomorphisms containing loops
  - TODO: efficient implementation (numpy in one function or efficient
  -                                 pruning of search tree)
  -
