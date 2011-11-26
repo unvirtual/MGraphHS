@@ -119,7 +119,7 @@ refinePiE gr pie wi ws
 -- Given a cell W find X = (X_1,..,X_s) which is an element of all partition on a
 -- given cell V such that d(x,W) < d(y,W) for x in X_i and y in X_j if i<j
 orderedPartition :: UGraph -> Cell -> Cell -> Partition
-orderedPartition gr w v = groupSort (\x -> cellDegree gr w x) v
+orderedPartition gr w v = groupSort (cellDegree gr w) v
 
 -- number of vertices in a cell adjacent to a given vertex
 cellDegree :: UGraph -> Cell -> Vertex -> Int
