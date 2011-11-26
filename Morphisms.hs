@@ -53,7 +53,14 @@ instance Eq UGraph where
     x == y = isIsomorphic x y
 
 instance Ord UGraph where
-    x <= y = getArray x <= getArray y
+    x `compare` y =  graphCompare x y
+
+-- comparison of graphs after determining the canonical ordering
+graphCompare :: UGraph -> UGraph -> Ordering
+graphCompare g1 g2 | nvertices g1 /= nvertices g2 = nvertices g1 `compare` nvertices g2
+                   | otherwise = adjCompare cg1 cg2
+    where cg1 = canonicGraph g1 (unitPartition (vertexBounds g1))
+          cg2 = canonicGraph g2 (unitPartition (vertexBounds g2))
 
 type Cell = [Vertex]
 -- set of ordered disjoint non-empty cells of a set S with union P = S
