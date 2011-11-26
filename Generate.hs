@@ -5,10 +5,6 @@ import Util
 import Control.Monad.State
 import Data.List
 
-import Control.Applicative
-
-import Debug.Trace
-
 {----------------------------------------------------------------------
  -
  - Graph generation
