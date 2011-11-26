@@ -2,6 +2,7 @@ module Graph ( Vertex
              , Edge
              , Bounds
              , UGraph
+             , adjCompare
              , getArray
              , isNeighbour
              , degreeNeighbour
@@ -9,6 +10,7 @@ module Graph ( Vertex
              , isMultiGraph
              , hasLoops
              , vertices
+             , nvertices
              , edges
              , vertexBounds
              , adjacency
@@ -66,6 +68,10 @@ vertexBounds :: UGraph -> Bounds
 vertexBounds gr = (l,h)
     where (SymIx (l,_), SymIx (h,_)) = bounds $ getArray gr
 
+-- number of vertices
+nvertices :: UGraph -> Int
+nvertices = length . vertices
+
 -- vertices adjacent to another vertex in a graph
 adjVertices :: Vertex -> UGraph -> [Vertex]
 adjVertices v g = [x | x <- (vertices g), (getArray g)!(symIx (x,v)) /= 0]
@@ -88,6 +94,21 @@ adjacency v g = [(getArray g)!(symIx (x,v)) | x <- (vertices g)]
 degree :: Vertex -> UGraph -> Int
 degree v g = (adj!!v) +  (sum $ adj)
     where adj = adjacency v g
+
+-- compare the adjacency matrices of the given graph
+adjCompare :: UGraph -> UGraph -> Ordering
+adjCompare g1 g2 | arr1 == arr2 = EQ
+                 | otherwise    = diff $ diffElems arr1 arr2
+    where arr1 = getArray g1
+          arr2 = getArray g2
+          diffElems a1 a2 = [(a1!(symIx (i,j)), a2!(symIx (i,j))) |
+                             i <- range $ vertexBounds g1,
+                             j <- range $ vertexBounds g2,
+                             (a1!(symIx (i,j))) /= (a2!(symIx (i,j)))]
+          diff :: (Ord a) => [(a,a)] -> Ordering
+          diff x = case x of
+              [] -> EQ
+              ((a,b):xs) -> a `compare` b
 
 {--------------------------------------------------------------------------------
  -
