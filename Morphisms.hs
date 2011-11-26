@@ -83,7 +83,7 @@ isTrivial = (==) 1 . length
 
 -- a partition is discrete if all cells are trivial (cardinality = 1)
 isDiscrete :: Partition -> Bool
-isDiscrete = all (isTrivial)
+isDiscrete = all isTrivial
 
 isUnit :: Partition -> Bool
 isUnit = (==) 1 . length
@@ -120,12 +120,12 @@ refinePiE gr pie wi ws
     | otherwise = (xx, wsmod)
     where xx = orderedPartition gr wi pie
           (maxX, restX) = splitLongest xx
-          wsmod = (replaceElem pie maxX ws) ++ restX
+          wsmod = replaceElem pie maxX ws ++ restX
 
 -- Given a cell W find X = (X_1,..,X_s) which is an element of all partition on a
 -- given cell V such that d(x,W) < d(y,W) for x in X_i and y in X_j if i<j
 orderedPartition :: UGraph -> Cell -> Cell -> Partition
-orderedPartition gr w v = groupSort (cellDegree gr w) v
+orderedPartition gr w = groupSort (cellDegree gr w)
 
 -- number of vertices in a cell adjacent to a given vertex
 cellDegree :: UGraph -> Cell -> Vertex -> Int
@@ -136,12 +136,12 @@ cellDegree gr c v = sum $ map (degreeNeighbour gr v) c
 -- cell before the matching cell
 parallelProject :: Partition -> Vertex -> Partition
 parallelProject [] _ = []
-parallelProject (p:ps) v | (not . isTrivial) p && vInCell v p = ([v]:extractV v p:ps)
-                         | otherwise = [p] ++ parallelProject ps v
+parallelProject (p:ps) v | (not . isTrivial) p && vInCell v p = [v]:extractV v p:ps
+                         | otherwise = p : parallelProject ps v
     where vInCell v c = v `elem` c
           extractV _ [] = []
           extractV v (c:cs) | c == v = cs
-                            | otherwise = [c] ++ extractV v cs
+                            | otherwise = c : extractV v cs
 
 -- the orthogonal projection pi \ortho v of a partition and a vertex
 -- is defined as R(G, pi.v, [[v]])
@@ -155,12 +155,12 @@ descendantPartitions g p = dp g p (verts p)
           verts (p:ps) | isTrivial p = verts ps
                        | otherwise = p
           dp _ _ [] = []
-          dp g p (v:vs) = (orthoProject g p v:dp g p vs)
+          dp g p (v:vs) = orthoProject g p v:dp g p vs
 
 -- build the search tree
 partitionTree :: UGraph -> Partition -> Tree Partition
 partitionTree g p = buildTree (refine g p p)
-    where buildTree p = Node p (map (buildTree) (descendantPartitions g p))
+    where buildTree p = Node p (map buildTree (descendantPartitions g p))
 
 -- chain all the paths of the tree
 paths :: Tree Partition -> [[Partition]]
@@ -179,9 +179,9 @@ canonicLabels g = snd . minimum .  map indptuple . paths . partitionTree g
 -- trivial indicator function (hash for given partition)
 indicator :: UGraph -> Partition -> Int32
 indicator g = orderedHash . map unorderedHash . inner
-    where inner [] = []
-          inner (p:ps) = (map (fromIntegral . cellDegree g p) (vertices g) : inner ps)
+    where inner = foldr
+                  (\p -> (:) (map (fromIntegral . cellDegree g p) (vertices g))) []
           -- order independent hash of a vector
-          unorderedHash = foldl (xor) 0
+          unorderedHash = foldl xor 0
           -- rotating hash
-          orderedHash = foldl (\acc x -> ((shift acc 7) `xor` (shift acc (-28)) `xor` x)) 0
+          orderedHash = foldl (\acc x -> (shift acc 7 `xor` shift acc (-28) `xor` x)) 0

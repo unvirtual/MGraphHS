@@ -27,7 +27,7 @@ reachableVertices g v = concatMap preorder (depthFirst g [v])
 -- an arbitrary start vertex (here we take the first vertex of the
 -- graph)
 isConnected :: UGraph -> Bool
-isConnected gr = length (reachableVertices gr (vv!!0)) == length vv
+isConnected gr = length (reachableVertices gr (head vv)) == length vv
     where vv = vertices gr
 
 {--------------------------------------------------------------------------------
@@ -40,7 +40,7 @@ type Visited = Array Vertex Bool
 
 -- preorder of a B-tree
 preorder :: Tree a -> [a]
-preorder (Node x xs) = (x:(concatMap preorder xs))
+preorder (Node x xs) = x:concatMap preorder xs
 
 -- postorder of a B-tree
 postorder :: Tree a -> [a]
@@ -51,23 +51,22 @@ postorder (Node x xs) = concatMap postorder xs ++ [x]
 -- infinte in size. It has to be filtered, such that every vertex
 -- appears only once as a node, using depth-first search.
 uGraphToTree :: Vertex -> UGraph -> Tree Vertex
-uGraphToTree v gr = Node v (map (\x -> uGraphToTree x gr) (adjVertices v gr))
+uGraphToTree v gr = Node v (map (`uGraphToTree` gr) (adjVertices v gr))
 
 -- remove duplicate vertices in a forest of vertex trees
 rmDuplVertices :: Forest Vertex -> State Visited (Forest Vertex)
 rmDuplVertices [] = return []
-rmDuplVertices ((Node v rest):frst) = do
+rmDuplVertices (Node v rest:frst) = do
     visited <- get
-    case (visited!v) of
-        False -> do modify (\x -> x // [(v,True)])
-                    redRest <- rmDuplVertices rest
-                    redFrst <- rmDuplVertices frst
-                    return ((Node v redRest):redFrst)
-        True  -> do rmDuplVertices frst
+    if visited!v then rmDuplVertices frst else
+        (do modify (\x -> x // [(v,True)])
+            redRest <- rmDuplVertices rest
+            redFrst <- rmDuplVertices frst
+            return (Node v redRest:redFrst))
 
 -- perform depth-first search on a graph
 depthFirst :: UGraph -> [Vertex] -> Forest Vertex
-depthFirst g v = filterForest bnds (map (flip uGraphToTree g) v) falseArr
+depthFirst g v = filterForest bnds (map (`uGraphToTree` g) v) falseArr
     where filterForest bnds ts = fst . runState (rmDuplVertices ts)
           falseArr = listArray bnds $ repeat False
           bnds = vertexBounds g

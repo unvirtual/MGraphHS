@@ -4,6 +4,7 @@ import Graph
 import Util
 import Control.Monad.State
 import Data.List
+import Data.Function (on)
 
 {----------------------------------------------------------------------
  -
@@ -38,12 +39,12 @@ import Data.List
  ---------------------------------------------------------------------}
 
 degreeGraphs :: [(Int,Int)] -> [UGraph]
-degreeGraphs degreeSeq = map adjMatToUGraph $ map snd reduction
-    where dsClean = sortBy (\x y -> fst x `compare` fst y)
+degreeGraphs degreeSeq = map (adjMatToUGraph . snd) reduction
+    where dsClean = sortBy (compare `on` fst)
                     $ filter (\(x,y) -> (x /= 0) && (y /= 0)) degreeSeq
           p = initPartition dsClean
           red =  genDegGraphs (p, initIAdj (ecPartitionVertices p))
-          reduction =  filter (\x -> any (\y -> y /= []) (snd x)) $ red
+          reduction =  filter (any (\y -> y /= []) . snd) red
 
 -- generate all graphs on `n` vertices with all possible combinations
 -- of degrees `degrees`
@@ -78,14 +79,14 @@ ecLength = length . verts
 
 -- number of vertices in an ECPartition
 ecPartitionVertices :: ECPartition -> Int
-ecPartitionVertices = sum . (map ecLength)
+ecPartitionVertices = sum . map ecLength
 
 -- get an ECPartition for the given (degree, #vertices) pairs. Vertex
 -- count starts at 0
 initPartition :: [(Int, Int)] -> ECPartition
 initPartition xxs = f 0 xxs
     where f n [] = []
-          f n ((x,y):xs) = (EC x [n..(n+y-1)]):(f (n+y) xs)
+          f n ((x,y):xs) = EC x [n..(n+y-1)]:f (n+y) xs
 
 type Count = Int
 type Arcs = Int
@@ -110,21 +111,21 @@ connectionCombinations arcs = map groupOcc . prune arcs . sequence . orderRep
 -- from a Partition and a givne number of arcs
 connections :: ECPartition -> Int -> [[ECNodeSelection]]
 connections p order = concatMap (con p) $ arcSeq order p
-     where con p arcs = map (zip p) $ sequence $ zipWith connectionCombinations arcs p
+     where con p arcs = map (zip p) $ zipWithM connectionCombinations arcs p
 
 -- return all connections grouped by number of loops to the start
 -- vertex
 connectionsWLoops :: ECPartition -> Int -> [(Int, [[ECNodeSelection]])]
 connectionsWLoops x m = filter prune $ map (conMap x m) [0,2..m]
     where prune s = case s of
-                        (v,[[]]) -> if (v < m) then False else True
+                        (v,[[]]) -> v >= m
                         _        -> True
           conMap x m n = (n, connections x (m-n))
 
 -- split an equivalence class and modify the adjacancy matrix state to
 -- reflect the new arcs
 splitEC :: Vertex -> ECNodeSelection -> AdjMatState ECPartition
-splitEC vi ec = liftM (map fst) $ (splitAll ec)
+splitEC vi ec = liftM (map fst) $ splitAll ec
     where splitAll :: ECNodeSelection -> AdjMatState [ECNodeSelection]
           splitAll (EC _ [], _) = return []
           splitAll ens@(ec, x) = case x of
@@ -135,7 +136,7 @@ splitEC vi ec = liftM (map fst) $ (splitAll ec)
                               splitpart = splitSingle count order ec
                               next = (ecDrop count ec, xs)
           splitSingle :: Int -> Int -> EquivClass -> [ECNodeSelection]
-          splitSingle c o e  | (order e) - o > 0 = [(ecTake c o e, [])]
+          splitSingle c o e  | order e - o > 0 = [(ecTake c o e, [])]
                              | otherwise         = []
 
           ecDrop :: Int -> EquivClass -> EquivClass
@@ -147,9 +148,9 @@ splitEC vi ec = liftM (map fst) $ (splitAll ec)
 -- split a partition for a given start vertex, number of loops at the
 -- vertex and a partition represented as ECNodeSelection
 splitPartition :: Vertex -> Int -> [ECNodeSelection] -> AdjMatState ECPartition
-splitPartition v 0 [] = return ([])
+splitPartition v 0 [] = return []
 splitPartition v selfc s = case s of
-    [] -> modify (addloops v selfc) >> return ([])
+    [] -> modify (addloops v selfc) >> return []
     (s:ss) -> do
         x <- splitEC v s
         y <- splitPartition v selfc ss
@@ -171,10 +172,10 @@ genDegGraphs (p, gr) | ss /= [] = concatMap genDegGraphs red
                      | otherwise = []
     where (node, order, newp) = nextConnections p
           ss = connectionsWLoops newp order
-          red = concatMap (\z ->  map (\x -> runState x gr) (splitForList node z)) ss
+          red = concatMap (map (`runState` gr) . splitForList node) ss
           nextConnections :: ECPartition -> (Int, Int, ECPartition)
-          nextConnections ((EC o nodes):xs) = case nodes of
+          nextConnections (EC o nodes:xs) = case nodes of
               [n] -> (n, o, xs)
               (n:ns) -> (n, o, (EC o ns):xs)
           splitForList :: Int -> (Int, [[ECNodeSelection]]) -> [AdjMatState ECPartition]
-          splitForList start (z, ecc) = map (\x -> splitPartition start z x) ecc
+          splitForList start (z, ecc) = map (splitPartition start z) ecc

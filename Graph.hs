@@ -18,7 +18,6 @@ module Graph ( Vertex
              , permuteUGraphSymm
              , degree) where
 
-import Data.Array
 import Control.Monad.State
 import Data.Tree
 import Data.List
@@ -53,7 +52,7 @@ isMultiGraph = any (1 <) . elems . getArray
 
 -- check for edges starting and ending in the same vertex
 hasLoops :: UGraph -> Bool
-hasLoops g = any ((/=) 0) $ [x | (SymIx (i,j), x) <- assocs $ getArray g, i == j]
+hasLoops g = any (0 /=) [x | (SymIx (i,j), x) <- assocs $ getArray g, i == j]
 
 -- all vertices of a graph
 vertices :: UGraph -> [Vertex]
@@ -74,25 +73,25 @@ nvertices = length . vertices
 
 -- vertices adjacent to another vertex in a graph
 adjVertices :: Vertex -> UGraph -> [Vertex]
-adjVertices v g = [x | x <- (vertices g), (getArray g)!(symIx (x,v)) /= 0]
+adjVertices v g = [x | x <- vertices g, getArray g!symIx (x,v) /= 0]
 
 -- checks if v1 and v2 are directly connected
 isNeighbour :: UGraph -> Vertex -> Vertex -> Bool
-isNeighbour gr v1 v2 = v1 `elem` (adjVertices v2 gr)
+isNeighbour gr v1 v2 = v1 `elem` adjVertices v2 gr
 
 degreeNeighbour :: UGraph -> Vertex -> Vertex -> Int
 degreeNeighbour g v1 v2 | v1 == v2 = -adj
                         | otherwise = adj
-    where adj = (getArray g)!(symIx (v1,v2))
+    where adj = getArray g!symIx (v1,v2)
 
 -- adjacency for a vertex in a graph (slowest component in dfs)
 -- TODO: avoid construction of list somehow
 adjacency :: Vertex -> UGraph -> [Int]
-adjacency v g = [(getArray g)!(symIx (x,v)) | x <- (vertices g)]
+adjacency v g = [getArray g!symIx (x,v) | x <- vertices g]
 
 -- return the degree of a vertex
 degree :: Vertex -> UGraph -> Int
-degree v g = (adj!!v) +  (sum $ adj)
+degree v g = (adj!!v) +  sum adj
     where adj = adjacency v g
 
 -- compare the adjacency matrices of the given graph
@@ -101,10 +100,10 @@ adjCompare g1 g2 | arr1 == arr2 = EQ
                  | otherwise    = diff $ diffElems arr1 arr2
     where arr1 = getArray g1
           arr2 = getArray g2
-          diffElems a1 a2 = [(a1!(symIx (i,j)), a2!(symIx (i,j))) |
+          diffElems a1 a2 = [(a1!symIx (i,j), a2!symIx (i,j)) |
                              i <- range $ vertexBounds g1,
                              j <- range $ vertexBounds g2,
-                             (a1!(symIx (i,j))) /= (a2!(symIx (i,j)))]
+                             a1!symIx (i,j) /= a2!symIx (i,j)]
           diff :: (Ord a) => [(a,a)] -> Ordering
           diff x = case x of
               [] -> EQ
@@ -119,19 +118,18 @@ adjCompare g1 g2 | arr1 == arr2 = EQ
 -- symmetric indices
 newtype SymIx = SymIx { pair :: (Int, Int) } deriving (Eq, Ord, Show)
 instance Ix SymIx where
-    range ((SymIx (i1,j1)), (SymIx (i2,j2))) =
+    range (SymIx (i1,j1), SymIx (i2,j2)) =
         map SymIx [(x,y) | x <- range (i1,i2), y <- range (j1,j2), x >= y]
 
     inRange (x,y) i = x' <= hx && x' >= lx && y' <= hx && y' >= lx && x' >= y'
-        where (lx,ly) = pair x
-              (hx,hy) = pair y
-              (x',y') = pair i
-
-    index (x,y) i | inRange (x,y) i = (x' - lx) + (sum $ take (y' - ly) [hx-lx, hx - lx - 1..])
+          where (lx, ly) = pair x
+                (hx, hy) = pair y
+                (x', y') = pair i
+    index (x,y) i | inRange (x,y) i = (x' - lx) + sum (take (y' - ly) [hx-lx, hx - lx - 1..])
                   | otherwise = error "Wrong array index"
-                  where (lx, ly) = pair x
-                        (hx, hy) = pair y
-                        (x', y') = pair i
+          where (lx, ly) = pair x
+                (hx, hy) = pair y
+                (x', y') = pair i
 
 symIx :: (Int, Int) -> SymIx
 symIx (x,y) | x < y = SymIx (y,x)
@@ -144,8 +142,8 @@ row v gr = [x | (SymIx (i,j), x) <- assocs $ getArray gr, j == v]
 -- perform permutation on UGraph
 -- TODO: Replace this *awful* temp solution
 permuteUGraphSymm :: [(Int,Int)] -> UGraph -> UGraph
-permuteUGraphSymm p g = UGraph $ newgraph
-    where arr = array ((l,l), (u,u)) [((x,y), (getArray g)!(symIx(x,y))) | x <- [l..u], y <- [l..u]]
+permuteUGraphSymm p g = UGraph newgraph
+    where arr = array ((l,l), (u,u)) [((x,y), getArray g!symIx(x,y)) | x <- [l..u], y <- [l..u]]
           newarr = permuteSymmetric p arr
           newgraph = array (SymIx (l,l), SymIx (u,u)) [(symIx (x,y), newarr!(x,y)) | x <- [l..u], y <- [l..u]]
           (SymIx (l,_), SymIx (u,_)) = bounds $ getArray g
