@@ -26,21 +26,21 @@ import Data.Bits
  ---------------------------------------------------------------------}
 
 -- refine a partition with respect to another partition
-refine :: UGraph -> Partition -> [Cell] -> Partition
+refine :: Graph -> Partition -> [Cell] -> Partition
 refine gr pi ww = case ww of
     [] -> pi
     (w:ws) -> refine gr pinew wsnew
               where (pinew, wsnew) = refinePi gr pi w ws
 
 -- permute the adjacency matrix and return the relabeled graph
-canonicGraph :: UGraph -> Partition -> UGraph
-canonicGraph g p = permuteUGraphSymm labels g
+canonicGraph :: Graph -> Partition -> Graph
+canonicGraph g p = permuteGraphSymm labels g
     where labels = zip (vertices g) (concat $ canonicLabels g p)
 
-isIsomorphic :: UGraph -> UGraph -> Bool
+isIsomorphic :: Graph -> Graph -> Bool
 isIsomorphic g1 g2 = (v1 == v2) && arr g1 v1 == arr g2 v2
                      where (v1,v2) = (vertices g1, vertices g2)
-                           arr g v = getArray $ canonicGraph g [v]
+                           arr g v = getAdj $ canonicGraph g [v]
 
 {---------------------------------------------------------------------
  -
@@ -48,16 +48,16 @@ isIsomorphic g1 g2 = (v1 == v2) && arr g1 v1 == arr g2 v2
  -
  ---------------------------------------------------------------------}
 
--- now we can define the UGraph to be instances of Eq and Ord
-instance Eq UGraph where
+-- now we can define the Graph to be instances of Eq and Ord
+instance Eq Graph where
     x == y = isIsomorphic x y
 
-instance Ord UGraph where
+instance Ord Graph where
     x `compare` y =  graphCompare x y
 
 -- comparison of graphs after determining the canonical ordering
-graphCompare :: UGraph -> UGraph -> Ordering
-graphCompare g1 g2 | nvertices g1 /= nvertices g2 = nvertices g1 `compare` nvertices g2
+graphCompare :: Graph -> Graph -> Ordering
+graphCompare g1 g2 | nVertices g1 /= nVertices g2 = nVertices g1 `compare` nVertices g2
                    | otherwise = adjCompare cg1 cg2
     where cg1 = canonicGraph g1 (unitPartition (vertexBounds g1))
           cg2 = canonicGraph g2 (unitPartition (vertexBounds g2))
@@ -102,7 +102,7 @@ supp = concat . filter (not . isTrivial)
 
 -- refine a given current pi elem Pi_G recursively given a w and ws,
 -- return the new pi and the modified ws
-refinePi :: UGraph -> Partition -> Cell -> [Cell] -> (Partition, [Cell])
+refinePi :: Graph -> Partition -> Cell -> [Cell] -> (Partition, [Cell])
 refinePi gr [] wi ws = ([], ws)
 refinePi gr pi@(pie:pis) wi ws
     | isDiscrete pi = (pi, ws)
@@ -114,7 +114,7 @@ refinePi gr pi@(pie:pis) wi ws
 -- Given a cell pie in pi, a list of cells ws and an element w, return
 -- the ordered parition of pie with respect to w and the new list of
 -- cells ws
-refinePiE :: UGraph -> Cell -> Cell -> [Cell] -> (Partition, [Cell])
+refinePiE :: Graph -> Cell -> Cell -> [Cell] -> (Partition, [Cell])
 refinePiE gr pie wi ws
     | isUnit xx = ([pie], ws)
     | otherwise = (xx, wsmod)
@@ -124,11 +124,11 @@ refinePiE gr pie wi ws
 
 -- Given a cell W find X = (X_1,..,X_s) which is an element of all partition on a
 -- given cell V such that d(x,W) < d(y,W) for x in X_i and y in X_j if i<j
-orderedPartition :: UGraph -> Cell -> Cell -> Partition
+orderedPartition :: Graph -> Cell -> Cell -> Partition
 orderedPartition gr w = groupSort (cellDegree gr w)
 
 -- number of vertices in a cell adjacent to a given vertex
-cellDegree :: UGraph -> Cell -> Vertex -> Int
+cellDegree :: Graph -> Cell -> Vertex -> Int
 cellDegree gr c v = sum $ map (degreeNeighbour gr v) c
 
 -- the scalar product pi.v of a partition with a vertex is defined as
@@ -145,11 +145,11 @@ parallelProject (p:ps) v | (not . isTrivial) p && vInCell v p = [v]:extractV v p
 
 -- the orthogonal projection pi \ortho v of a partition and a vertex
 -- is defined as R(G, pi.v, [[v]])
-orthoProject :: UGraph -> Partition -> Vertex -> Partition
+orthoProject :: Graph -> Partition -> Vertex -> Partition
 orthoProject gr pi v = refine gr (parallelProject pi v) [[v]]
 
 -- next level of descendants of given parition
-descendantPartitions :: UGraph -> Partition -> [Partition]
+descendantPartitions :: Graph -> Partition -> [Partition]
 descendantPartitions g p = dp g p (verts p)
     where verts [] = []
           verts (p:ps) | isTrivial p = verts ps
@@ -158,7 +158,7 @@ descendantPartitions g p = dp g p (verts p)
           dp g p (v:vs) = orthoProject g p v:dp g p vs
 
 -- build the search tree
-partitionTree :: UGraph -> Partition -> Tree Partition
+partitionTree :: Graph -> Partition -> Tree Partition
 partitionTree g p = buildTree (refine g p p)
     where buildTree p = Node p (map buildTree (descendantPartitions g p))
 
@@ -172,12 +172,12 @@ treePaths np (Node p forest) = concatMap (treePaths (p:np) ) forest
 
 -- the canonic labelling is obtained from the minimal value of
 -- indicators for all paths between the root node and leaves
-canonicLabels :: UGraph -> Partition -> Partition
+canonicLabels :: Graph -> Partition -> Partition
 canonicLabels g = snd . minimum .  map indptuple . paths . partitionTree g
     where indptuple x = (map (indicator g) x, last x)
 
 -- trivial indicator function (hash for given partition)
-indicator :: UGraph -> Partition -> Int32
+indicator :: Graph -> Partition -> Int32
 indicator g = orderedHash . map unorderedHash . inner
     where inner = foldr
                   (\p -> (:) (map (fromIntegral . cellDegree g p) (vertices g))) []

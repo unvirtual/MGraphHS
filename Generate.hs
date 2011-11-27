@@ -38,8 +38,8 @@ import Data.Function (on)
  -
  ---------------------------------------------------------------------}
 
-degreeGraphs :: [(Int,Int)] -> [UGraph]
-degreeGraphs degreeSeq = map (adjMatToUGraph . snd) reduction
+degreeGraphs :: [(Int,Int)] -> [Graph]
+degreeGraphs degreeSeq = map (adjMatToGraph . snd) reduction
     where dsClean = sortBy (compare `on` fst)
                     $ filter (\(x,y) -> (x /= 0) && (y /= 0)) degreeSeq
           p = initPartition dsClean
@@ -48,7 +48,7 @@ degreeGraphs degreeSeq = map (adjMatToUGraph . snd) reduction
 
 -- generate all graphs on `n` vertices with all possible combinations
 -- of degrees `degrees`
-allGraphs :: Int -> [Int] -> [UGraph]
+allGraphs :: Int -> [Int] -> [Graph]
 allGraphs nvert degrees = undefined
 
 {---------------------------------------------------------------------
@@ -61,7 +61,7 @@ data EquivClass = EC { order :: Int, verts :: [Vertex] } deriving (Eq, Show)
 -- beneficial for speed
 type ECPartition = [EquivClass]
 type MSequence = [Int]
--- TODO: eventually replace with UGraph
+-- TODO: eventually replace with Graph
 type AdjMat = [[Int]]
 type AdjMatState a = State AdjMat a
 
@@ -69,8 +69,8 @@ initIAdj :: Int -> AdjMat
 initIAdj n = replicate n []
 
 -- temporary helper function
-adjMatToUGraph :: AdjMat -> UGraph
-adjMatToUGraph m = createUGraph (amEdges m)
+adjMatToGraph :: AdjMat -> Graph
+adjMatToGraph m = createGraph (amEdges m)
   where amEdges m = [(fst x, y) | x <- zz, y <- snd x]
                     where zz = zip [0..] m
 -- number of vertices in an equivalence class
