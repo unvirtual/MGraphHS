@@ -6,6 +6,6 @@ Synopsis: WIP for a Feynman diagram generator
 Build-type: Simple
 
 Library
-    Build-Depends: base,array,containers,mtl
+    Build-Depends: base,array,containers,mtl,vector
     Exposed-modules:
         Graph, Util, Morphisms, DFS, Generate

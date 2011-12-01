@@ -4,6 +4,11 @@ import Util
 import Data.Tree
 import Control.Monad.State
 import Data.Array
+import qualified Data.Array.Unboxed as UA
+import qualified Data.Vector.Unboxed as UV
+import Data.Array.ST
+
+import Control.Monad.ST
 
 {--------------------------------------------------------------------------------
  -
@@ -20,13 +25,13 @@ import Data.Array
  -------------------------------------------------------------------------------}
 
 -- return a list of all reachable vertices from a given vertex
-reachableVertices :: UGraph -> Vertex -> [Vertex]
+reachableVertices :: Graph -> Vertex -> [Vertex]
 reachableVertices g v = concatMap preorder (depthFirst g [v])
 
 -- a graph is completely connected, if all vertices are reachable from
 -- an arbitrary start vertex (here we take the first vertex of the
 -- graph)
-isConnected :: UGraph -> Bool
+isConnected :: Graph -> Bool
 isConnected gr = length (reachableVertices gr (head vv)) == length vv
     where vv = vertices gr
 
@@ -36,7 +41,8 @@ isConnected gr = length (reachableVertices gr (head vv)) == length vv
  -
  -------------------------------------------------------------------------------}
 
-type Visited = Array Vertex Bool
+type Visited s = STUArray s Vertex Bool
+
 
 -- preorder of a B-tree
 preorder :: Tree a -> [a]
@@ -46,28 +52,29 @@ preorder (Node x xs) = x:concatMap preorder xs
 postorder :: Tree a -> [a]
 postorder (Node x xs) = concatMap postorder xs ++ [x]
 
--- create a tree from an UGraph given a root vertex. This tree then
+-- create a tree from an Graph given a root vertex. This tree then
 -- contains all reachable vertices from the given vertex and is
 -- infinte in size. It has to be filtered, such that every vertex
 -- appears only once as a node, using depth-first search.
-uGraphToTree :: Vertex -> UGraph -> Tree Vertex
-uGraphToTree v gr = Node v (map (`uGraphToTree` gr) (adjVertices v gr))
+uGraphToTree :: Vertex -> Graph -> Tree Vertex
+uGraphToTree v gr = Node v (map (`uGraphToTree` gr) (UV.toList $ adjVertices v gr))
 
 -- remove duplicate vertices in a forest of vertex trees
-rmDuplVertices :: Forest Vertex -> State Visited (Forest Vertex)
-rmDuplVertices [] = return []
-rmDuplVertices (Node v rest:frst) = do
-    visited <- get
-    if visited!v then rmDuplVertices frst else
-        (do modify (\x -> x // [(v,True)])
-            redRest <- rmDuplVertices rest
-            redFrst <- rmDuplVertices frst
-            return (Node v redRest:redFrst))
+rmDuplVertices :: Visited s -> Forest Vertex -> ST s (Forest Vertex)
+rmDuplVertices _ [] = return []
+rmDuplVertices vis (Node v rest:frst) = do
+    isSeen <- readArray vis v
+    if isSeen
+        then do rmDuplVertices vis frst
+        else do writeArray vis v True
+                r1 <- rmDuplVertices vis rest
+                r2 <- rmDuplVertices vis frst
+                return ((Node v r1):r2)
 
 -- perform depth-first search on a graph
-depthFirst :: UGraph -> [Vertex] -> Forest Vertex
-depthFirst g v = filterForest bnds (map (`uGraphToTree` g) v) falseArr
-    where filterForest bnds ts = fst . runState (rmDuplVertices ts)
-          falseArr = listArray bnds $ repeat False
+depthFirst :: Graph -> [Vertex] -> Forest Vertex
+depthFirst g v = filterForest (map (`uGraphToTree` g) v)
+    where filterForest ts = runST $ do
+                arr <- newArray bnds False
+                rmDuplVertices arr ts
           bnds = vertexBounds g
-
