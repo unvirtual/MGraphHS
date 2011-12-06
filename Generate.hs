@@ -72,10 +72,10 @@ import qualified Data.Vector.Unboxed as UV
 
 degreeGraphs :: [(Int,Int)] -> [Graph]
 degreeGraphs degreeSeq = map (adjMatToGraph . snd) reduction
-    where dsClean = sortBy (compare `on` fst)
+    where dsClean = sortBy (compare `on` snd)
                     $ filter (\(x,y) -> (x /= 0) && (y /= 0)) degreeSeq
           p = initPartition dsClean
-          red =  genDegGraphs p (p, initAdj)
+          red =  trace (show dsClean ++ " initP: " ++ show p) genDegGraphs p (p, initAdj)
           initAdj = initIAdj (ecPartitionVertices p)
           --reduction =  filter (any (\y -> y /= []) . fst) red
           reduction = red
@@ -91,7 +91,7 @@ allGraphs nvert degrees = undefined
  - Internal
  -
  ---------------------------------------------------------------------}
-data EquivClass = EC { order :: Int, verts :: [Vertex] } deriving (Eq, Show)
+data EquivClass = NULL | EC { order :: Int, verts :: [Vertex] } deriving (Eq, Show)
 -- we use simple lists for now, but other data types might be
 -- beneficial for speed
 type ECPartition = [EquivClass]
@@ -203,6 +203,13 @@ addarcs v order vs = rowupdate . colupdate
 addloops :: Vertex -> Int -> AdjMatrix -> AdjMatrix
 addloops v order m = (V.//) m [(v, UV.accum (+) ((V.!) m v) [(v, order)])]
 
+pretty :: AdjMatrix -> [Char]
+pretty = prettyCol . V.toList
+    where prettyCol [] = []
+          prettyCol (x:xs) = prettyRow (UV.toList x) ++ "\n" ++ prettyCol xs
+          prettyRow [] = []
+          prettyRow (x:xs) = show x ++ " " ++ prettyRow xs
+
 ---- generate all graphs
 genDegGraphs :: ECPartition -> (ECPartition, AdjMatrix)-> [(ECPartition, AdjMatrix)]
 genDegGraphs ip ([],gr) = [([], gr)]
@@ -210,10 +217,53 @@ genDegGraphs ip (p, gr) | ss /= [] = concatMap (genDegGraphs ip) red
                         | otherwise = []
     where (node, order, newp) = nextConnections p
           ss = connectionsWLoops newp order
-          red = concatMap (map (`runState` gr) . splitForList node) ss
+          red = filter (\(x,y) -> x /= [NULL]) $ concatMap (map (`runState` gr) . splitForList node) ss
           nextConnections :: ECPartition -> (Int, Int, ECPartition)
           nextConnections (EC o nodes:xs) = case nodes of
               [n] -> (n, o, xs)
               (n:ns) -> (n, o, (EC o ns):xs)
           splitForList :: Int -> (Int, [[ECNodeSelection]]) -> [AdjMatState ECPartition]
-          splitForList start (z, ecc) = map (splitPartition start z) ecc
+          splitForList start (z, ecc) = sfl ecc ---map (splitPartition start z) ecc
+               where sfl [] = []
+                     sfl (ex:exs) = flip (:) (sfl exs) $ do
+                                       part <- splitPartition start z ex
+                                       mat <- get
+                                       let parent = getParent node ip
+                                       () <- return $ trace (show node ++ " " ++ show order ++ " " ++ show part) ()
+                                       () <- return $ trace (pretty mat) ()
+                                       if parent == node
+                                            then do return part
+                                            else do
+                                                   let res = cmpVertices parent node parent mat
+                                                   () <- return(trace ("p : " ++ show parent ++ " c: " ++ show node ++ " res: " ++ show res) ())
+                                                   if res == LT then do return [NULL] else do return part
+
+getParent :: Vertex -> ECPartition -> Vertex
+getParent _ [] = error "wrong stuff"
+getParent v (x:xs) | v `elem` (verts x) = head $ verts x
+                   | otherwise          = getParent v xs
+
+bucket :: Vertex -> Int -> AdjMatrix -> [(Int, Int)]
+bucket v n = occurences . removeStuff v n . UV.toList . flip (V.!) v
+
+removeElem :: Vertex -> [Int] -> [Int]
+removeElem v l = (take v l) ++ (drop (v+1) l)
+
+removeStuff :: Vertex -> Int -> [Int] -> [Int]
+removeStuff v n l | v <= n    = drop (n + 1) l
+                  | otherwise = drop n $ removeElem v l
+
+maxConnectionOrder :: Vertex -> Int -> AdjMatrix -> Int
+maxConnectionOrder v n = fst . head . bucket v n
+
+cmpVertices :: Vertex ->  Vertex -> Int -> AdjMatrix -> Ordering
+cmpVertices pv cv n mat | maxc pv /= maxc cv = trace (show (maxc pv) ++ " != " ++  show (maxc cv)) maxc pv `compare` maxc cv
+                        | otherwise          = trace (show (bucket pv n mat) ++ " " ++ show (bucket cv n mat)) cmpBuckets (bucket pv n mat)
+                                                          (bucket cv n mat)
+    where maxc v = maxConnectionOrder v n mat
+
+cmpBuckets :: [(Int, Int)] -> [(Int, Int)] -> Ordering
+cmpBuckets [] [] = EQ
+cmpBuckets xx@((x,nx):xs) yy@((y,ny):ys) | x /= y = trace ("x /= y") x `compare` y
+                                         | nx /= ny = trace ("nx /= ny") nx `compare` ny
+                                         | otherwise = cmpBuckets xs ys
