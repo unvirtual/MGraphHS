@@ -77,7 +77,8 @@ degreeGraphs degreeSeq = map (adjMatToGraph . snd) reduction
           p = initPartition dsClean
           red =  genDegGraphs p (p, initAdj)
           initAdj = initIAdj (ecPartitionVertices p)
-          reduction =  filter (any (\y -> y /= []) . snd) red
+          --reduction =  filter (any (\y -> y /= []) . fst) red
+          reduction = red
 
 
 -- generate all graphs on `n` vertices with all possible combinations
@@ -96,17 +97,16 @@ data EquivClass = EC { order :: Int, verts :: [Vertex] } deriving (Eq, Show)
 type ECPartition = [EquivClass]
 type MSequence = [Int]
 -- TODO: eventually replace with Graph
-type AdjMat = [[Int]]
-type AdjMatState a = State AdjMat a
+type AdjMatState a = State AdjMatrix a
 
-initIAdj :: Int -> AdjMat
-initIAdj n = replicate n []
+initIAdj :: Int -> AdjMatrix
+initIAdj n = V.replicate n (UV.replicate n 0)
 
 -- temporary helper function
-adjMatToGraph :: AdjMat -> Graph
-adjMatToGraph m = createGraph (amEdges m)
-  where amEdges m = [(fst x, y) | x <- zz, y <- snd x]
-                    where zz = zip [0..] m
+adjMatToGraph :: AdjMatrix -> Graph
+adjMatToGraph m = Graph (0,l) m
+  where l = V.length m - 1
+
 -- number of vertices in an equivalence class
 ecLength :: EquivClass -> Int
 ecLength = length . verts
@@ -156,8 +156,8 @@ connectionsWLoops x m = filter prune $ map (conMap x m) [0,2..m]
                         _        -> True
           conMap x m n = (n, connections x (m-n))
 
--- split an equivalence class and modify the adjacancy matrix state to
--- reflect the new arcs
+---- split an equivalence class and modify the adjacancy matrix state to
+---- reflect the new arcs
 splitEC :: Vertex -> ECNodeSelection -> AdjMatState ECPartition
 splitEC vi ec = liftM (map fst) $ splitAll ec
     where splitAll :: ECNodeSelection -> AdjMatState [ECNodeSelection]
@@ -191,32 +191,20 @@ splitPartition v selfc s = case s of
         y <- splitPartition v selfc ss
         return (x ++ y)
 
-checkSplitPartition :: Vertex -> Int -> Vertex -> Int -> AdjMat -> Ordering
-checkSplitPartition pv porder cv corder mat | pmax /= cmax = pmax `compare` cmax
-                                            | length pbucket /= length cbucket = (length pbucket) `compare`
-                                                                                 (length cbucket)
-                                            | otherwise =    bc pbucket cbucket
-    where pmax = maxAdjToParents pv mat
-          cmax = maxAdjToParents cv mat
-          pbucket = bucket pv mat
-          cbucket = bucket cv mat
-          bc :: [(Int, Int)] -> [(Int, Int)] -> Ordering
-          bc [] [] = EQ
-          bc ((x,nx):xs) ((y, ny):ys)
-                           | x /= y = x `compare` y
-                           | otherwise = bc xs ys
-
 -- Add arcs from a given vertex to a list of vertices, order times
-addarcs :: Vertex -> Int -> [Vertex] -> AdjMat -> AdjMat
-addarcs v order vs = appendsortedAtNth v (concat $ replicate order vs)
+addarcs :: Vertex -> Int -> [Vertex] -> AdjMatrix -> AdjMatrix
+addarcs v order vs = rowupdate . colupdate
+    where inds = map (flip (,) order) vs
+          occs = occurences vs
+          rowupdate m = (V.//) m [(v, UV.accum (+) ((V.!) m v) inds)]
+          colupdate m = (V.//) m [(i, UV.accum (+) ((V.!) m i) (replicate order (v, j))) | (i,j) <- occs]
 
--- Add loops to the given vertex
-addloops :: Vertex -> Int -> AdjMat -> AdjMat
-addloops v o = appendsortedAtNth v (selfcouplings v o)
-    where selfcouplings v o = replicate (o `div` 2) v
+-- Add loops to the  given vertex
+addloops :: Vertex -> Int -> AdjMatrix -> AdjMatrix
+addloops v order m = (V.//) m [(v, UV.accum (+) ((V.!) m v) [(v, order)])]
 
--- generate all graphs
-genDegGraphs :: ECPartition -> (ECPartition, AdjMat)-> [(ECPartition, AdjMat)]
+---- generate all graphs
+genDegGraphs :: ECPartition -> (ECPartition, AdjMatrix)-> [(ECPartition, AdjMatrix)]
 genDegGraphs ip ([],gr) = [([], gr)]
 genDegGraphs ip (p, gr) | ss /= [] = concatMap (genDegGraphs ip) red
                         | otherwise = []
@@ -228,27 +216,4 @@ genDegGraphs ip (p, gr) | ss /= [] = concatMap (genDegGraphs ip) red
               [n] -> (n, o, xs)
               (n:ns) -> (n, o, (EC o ns):xs)
           splitForList :: Int -> (Int, [[ECNodeSelection]]) -> [AdjMatState ECPartition]
-          splitForList start (z, ecc) = spP ecc -- map (splitPartition start z) ecc
-                where spP [] = []
-                      spP (ex:exs) = flip (:) (spP exs) $ do
-                                        part <- splitPartition start z ex
-                                        mat <- get
-                                        let res = checkSplitPartition 0 0 node 0 mat
-                                        --if res == GT then return [] else return part
-                                        return part
-                -- here we have to do the check!!!!
-
-
-orderInPartition :: Vertex -> ECPartition -> Int
-orderInPartition v [] = error "Error: vertex not found in partition"
-orderInPartition v (e:ec) | v `elem` (verts e) = order e
-                          | otherwise = orderInPartition v ec
-
---- some helpers
---- all is bullshit!!! AdjMat is not an adjacency matrix
-
-maxAdjToParents :: Vertex -> AdjMat -> Int
-maxAdjToParents v = snd . last . bucket v
-
-bucket :: Vertex -> AdjMat -> [(Int,Int)]
-bucket v m = occurences $ m !! v
+          splitForList start (z, ecc) = map (splitPartition start z) ecc

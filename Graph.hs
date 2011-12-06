@@ -2,6 +2,7 @@ module Graph ( Vertex
              , Edge
              , Bounds
              , Graph (Graph)
+             , AdjMatrix
              , Row
              , adjCompare
              , getAdj
