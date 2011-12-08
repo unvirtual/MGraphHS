@@ -7,6 +7,7 @@ import Data.Array
 import Data.Tree
 import Data.Int
 import Data.Bits
+import qualified Data.Vector.Unboxed as UV
 
 {----------------------------------------------------------------------
  -
@@ -195,3 +196,43 @@ indicator g = orderedHash . map unorderedHash . inner
           unorderedHash = foldl xor 0
           -- rotating hash
           orderedHash = foldl (\acc x -> (shift acc 7 `xor` shift acc (-28) `xor` x)) 0
+
+
+type Relabeling = UV.Vector Int
+
+-- create a relabeling
+toRelabeling :: Bounds -> [(Int, Int)] -> Relabeling
+toRelabeling (l,u) list = UV.accum (+) (UV.replicate (u-l+1) 0) list
+
+-- vertices invariant under given Relabeling
+invariantVertices :: Relabeling -> [Vertex]
+invariantVertices = UV.toList . UV.ifilter (\i v -> i == v)
+
+-- relabel a partition with respect to another one
+partitionRelabeling :: Bounds -> Partition -> Partition -> Relabeling
+partitionRelabeling bnds p q = toRelabeling bnds $ cellMapping p q
+
+-- Find cycles in Relabeling and return the resulting partition
+groupCycles :: Relabeling -> Partition
+groupCycles = trivialCycleNodes . createGraph . UV.toList . UV.indexed
+
+zeroVec :: Bounds -> UV.Vector Int
+zeroVec (l,u) = UV.replicate (u-l+1) 0
+
+-- combine two relabellings
+combineRelabelings :: Relabeling -> Relabeling -> Relabeling
+combineRelabelings p q = UV.accum (+) (zeroVec (0, UV.length p)) $
+                         concatMap getCycle (trivialCycleNodes graph)
+    where next l x = case x of
+                (v1:v2:vs) -> (v2,v2) : next l (v2:vs)
+                (v:[])     -> [(v,l)]
+                _          -> []
+          getCycle x = case x of
+                (xs:xss) -> next xs x
+                _        -> []
+          graph = createGraph (zipWith (\x y -> (x,y)) (UV.toList p) (UV.toList q))
+
+
+-- minimum cell representation from a given Relabeling
+mcrFromRelabeling :: Relabeling -> [Vertex]
+mcrFromRelabeling = minimumCellRep . groupCycles
