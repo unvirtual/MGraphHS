@@ -4,6 +4,8 @@ import Util
 import Data.Tree
 import Control.Monad.State
 import Data.Array
+import qualified Data.Vector.Unboxed as UV
+
 
 {--------------------------------------------------------------------------------
  -
@@ -57,7 +59,7 @@ postorder (Node x xs) = concatMap postorder xs ++ [x]
 -- infinte in size. It has to be filtered, such that every vertex
 -- appears only once as a node, using depth-first search.
 graphToTree :: Vertex -> Graph -> Tree Vertex
-graphToTree v gr = Node v (map (`graphToTree` gr) (adjVertices v gr))
+graphToTree v gr = Node v (map (`graphToTree` gr) (UV.toList $ adjVertices v gr))
 
 -- remove duplicate vertices in a forest of vertex trees
 rmDuplVertices :: Forest Vertex -> State Visited (Forest Vertex)

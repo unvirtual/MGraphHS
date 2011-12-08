@@ -71,8 +71,8 @@ hasLoops g = any (0 /=) [getElem g i i | i <- vertices g]
 edges :: Graph -> [Edge]
 edges g = concat [replicate (getElem g i j) (i, j) | i <- vertices g, j <- range (i, snd $ vertexBounds g) , getElem g i j /= 0]
 
-adjVertices :: Vertex -> Graph -> [Vertex]
-adjVertices v g = [x | x <- vertices g, getElem g v x /= 0]
+adjVertices :: Vertex -> Graph -> Row
+adjVertices v g = UV.findIndices ((/=) 0) (adjacency v g)
 
 -- checks if v1 and v2 are directly connected
 isNeighbour :: Graph -> Vertex -> Vertex -> Bool

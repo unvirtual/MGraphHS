@@ -10,14 +10,25 @@ import Data.Array
 
 -- for a given y = (y_1,...,y_n) and a bound m, find all vectors
 -- x = (x_1,...,x_n) such that |x| = m and x_i <= y_i
---
--- TODO: Extend to a -> ([a] -> Bool) -> [a] -> [[a]] to and
--- filter/order according to the given predicate
 boundSequences :: (Num a, Ord a, Enum a) => a -> [a] -> [[a]]
-boundSequences m x | m <= sum x = (fByM . sequence . ranges) x
-                   | otherwise = [[]]
-    where fByM = filter (\x -> sum x == m)
-          ranges = map (\x -> [0..x])
+boundSequences m xs
+    | sm < m    = []
+    | sm == m   = [xs]
+    | otherwise = go sm m xs
+      where
+        sm = sum xs
+        go _ r []
+            | r == 0 = [[]]
+            | otherwise = []
+        go _ r [y]
+            | y < r     = []
+            | otherwise = [[r]]
+        go s r (y:ys) = do
+            let mny | s < r+y   = r+y-s
+                    | otherwise = 0
+                mxy = min y r
+            c <- [mny .. mxy]
+            map (c:) (go (s-y) (r-c) ys)
 
 -- number of occurences of unique elements in a list
 occurences :: (Ord a) => [a] -> [(a, Int)]
