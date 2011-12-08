@@ -1,4 +1,4 @@
-module DFS (reachableVertices, isConnected) where
+module DFS (reachableVertices, isConnected, trivialCycleNodes) where
 import Graph
 import Util
 import Data.Tree
@@ -9,9 +9,12 @@ import Data.Array
  -
  - Depth first search on graphs and related
  -
- - TODO: use mutable array for performance
+ -  * Implementation of DFS equivalent to Data.Graph, but uses custom Graph type
+ -  * TODO: biconnected components
+ -  * TODO: find cycles in multigraph
  -
  -------------------------------------------------------------------------------}
+
 
 {--------------------------------------------------------------------------------
  -
@@ -21,7 +24,7 @@ import Data.Array
 
 -- return a list of all reachable vertices from a given vertex
 reachableVertices :: Graph -> Vertex -> [Vertex]
-reachableVertices g v = concatMap preorder (depthFirst g [v])
+reachableVertices g v = concatMap preorder (depthFirstSearch g [v])
 
 -- a graph is completely connected, if all vertices are reachable from
 -- an arbitrary start vertex (here we take the first vertex of the
@@ -29,6 +32,9 @@ reachableVertices g v = concatMap preorder (depthFirst g [v])
 isConnected :: Graph -> Bool
 isConnected gr = length (reachableVertices gr (head vv)) == length vv
     where vv = vertices gr
+
+trivialCycleNodes :: Graph -> [[Vertex]]
+trivialCycleNodes = map flatten . depthFirstForest
 
 {--------------------------------------------------------------------------------
  -
@@ -50,8 +56,8 @@ postorder (Node x xs) = concatMap postorder xs ++ [x]
 -- contains all reachable vertices from the given vertex and is
 -- infinte in size. It has to be filtered, such that every vertex
 -- appears only once as a node, using depth-first search.
-uGraphToTree :: Vertex -> Graph -> Tree Vertex
-uGraphToTree v gr = Node v (map (`uGraphToTree` gr) (adjVertices v gr))
+graphToTree :: Vertex -> Graph -> Tree Vertex
+graphToTree v gr = Node v (map (`graphToTree` gr) (adjVertices v gr))
 
 -- remove duplicate vertices in a forest of vertex trees
 rmDuplVertices :: Forest Vertex -> State Visited (Forest Vertex)
@@ -65,9 +71,13 @@ rmDuplVertices (Node v rest:frst) = do
             return (Node v redRest:redFrst))
 
 -- perform depth-first search on a graph
-depthFirst :: Graph -> [Vertex] -> Forest Vertex
-depthFirst g v = filterForest bnds (map (`uGraphToTree` g) v) falseArr
+depthFirstSearch :: Graph -> [Vertex] -> Forest Vertex
+depthFirstSearch g v = filterForest bnds (map (`graphToTree` g) v) falseArr
     where filterForest bnds ts = fst . runState (rmDuplVertices ts)
           falseArr = listArray bnds $ repeat False
           bnds = vertexBounds g
+
+-- unordered DFS
+depthFirstForest :: Graph -> Forest Vertex
+depthFirstForest g = depthFirstSearch g (vertices g)
 
