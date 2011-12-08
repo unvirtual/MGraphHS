@@ -94,6 +94,16 @@ fix = concat . filter isTrivial
 supp :: Partition -> [Vertex]
 supp = concat . filter (not . isTrivial)
 
+-- {min V_i | V_i \in partition}
+-- Assumes that the vertices in each cell are sorted in increasing
+-- order
+minimumCellRep :: Partition -> [Vertex]
+minimumCellRep = map head
+
+cellMapping :: Partition -> Partition -> [Edge]
+cellMapping p q = zip (minimumCellRep p) (minimumCellRep q)
+
+
 {----------------------------------------------------------------------
  -
  - Straight-forward, potentially inefficient implementation
