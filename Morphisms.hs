@@ -8,13 +8,12 @@ import Data.Tree
 import Data.Int
 import Data.Bits
 import qualified Data.Vector.Unboxed as UV
+import Control.Monad.ST
+import Data.STRef
 
 {----------------------------------------------------------------------
  -
  - Isomorphisms and automorphisms of graphs
- -
- - TODO: efficient implementation (numpy in one function or efficient
- -                                 pruning of search tree)
  -
  - Ref: Practical Graph Isomorphism - B.D.McKak 1981
  -
@@ -26,22 +25,26 @@ import qualified Data.Vector.Unboxed as UV
  -
  ---------------------------------------------------------------------}
 
+-- check if twop graphs are isomorphic
+isIsomorphic :: Graph -> Graph -> Bool
+isIsomorphic g1 g2 = (v1 == v2) && arr g1 v1 == arr g2 v2
+                     where (v1,v2) = (vertices g1, vertices g2)
+                           arr g v = getAdj $ canonicGraph g [v]
+
+-- return the automorphisms of a given graph together with the canonically
+-- labeled graph
+automorphisms :: Partition -> Graph -> (Graph, [Relabeling])
+
+-- permute the adjacency matrix and return the relabeled graph
+canonicGraph :: Graph -> Partition -> Graph
+canonicGraph g p = fst $ automorphisms p g
+
 -- refine a partition with respect to another partition
 refine :: Graph -> Partition -> [Cell] -> Partition
 refine gr pi ww = case ww of
     [] -> pi
     (w:ws) -> refine gr pinew wsnew
               where (pinew, wsnew) = refinePi gr pi w ws
-
--- permute the adjacency matrix and return the relabeled graph
-canonicGraph :: Graph -> Partition -> Graph
-canonicGraph g p = permuteGraphSymm labels g
-    where labels = zip (vertices g) (concat $ canonicLabels g p)
-
-isIsomorphic :: Graph -> Graph -> Bool
-isIsomorphic g1 g2 = (v1 == v2) && arr g1 v1 == arr g2 v2
-                     where (v1,v2) = (vertices g1, vertices g2)
-                           arr g v = getAdj $ canonicGraph g [v]
 
 {---------------------------------------------------------------------
  -
@@ -107,7 +110,7 @@ cellMapping p q = zip (minimumCellRep p) (minimumCellRep q)
 
 {----------------------------------------------------------------------
  -
- - Straight-forward, potentially inefficient implementation
+ - Partition refinement
  -
  ----------------------------------------------------------------------}
 
@@ -160,32 +163,11 @@ orthoProject :: Graph -> Partition -> Vertex -> Partition
 orthoProject gr pi v = refine gr (parallelProject pi v) [[v]]
 
 -- next level of descendants of given parition
-descendantPartitions :: Graph -> Partition -> [Partition]
+descendantPartitions :: Graph -> Partition -> [(Vertex, Partition)]
 descendantPartitions g p = dp g p (verts p)
-    where verts [] = []
-          verts (p:ps) | isTrivial p = verts ps
-                       | otherwise = p
-          dp _ _ [] = []
-          dp g p (v:vs) = orthoProject g p v:dp g p vs
-
--- build the search tree
-partitionTree :: Graph -> Partition -> Tree Partition
-partitionTree g p = buildTree (refine g p p)
-    where buildTree p = Node p (map buildTree (descendantPartitions g p))
-
--- chain all the paths of the tree
-paths :: Tree Partition -> [[Partition]]
-paths = map reverse . treePaths []
-
-treePaths :: [Partition] -> Tree Partition -> [[Partition]]
-treePaths np (Node p []) = [p:np]
-treePaths np (Node p forest) = concatMap (treePaths (p:np) ) forest
-
--- the canonic labelling is obtained from the minimal value of
--- indicators for all paths between the root node and leaves
-canonicLabels :: Graph -> Partition -> Partition
-canonicLabels g = snd . minimum .  map indptuple . paths . partitionTree g
-    where indptuple x = (map (indicator g) x, last x)
+    where verts vv | isDiscrete vv = []
+                   | otherwise= head $ dropWhile (isTrivial) vv
+          dp g p vv = zip vv $ map (orthoProject g p) vv
 
 -- trivial indicator function (hash for given partition)
 indicator :: Graph -> Partition -> Int32
@@ -197,6 +179,11 @@ indicator g = orderedHash . map unorderedHash . inner
           -- rotating hash
           orderedHash = foldl (\acc x -> (shift acc 7 `xor` shift acc (-28) `xor` x)) 0
 
+{----------------------------------------------------------------------
+ -
+ - Relabeling
+ -
+ ----------------------------------------------------------------------}
 
 type Relabeling = UV.Vector Int
 
@@ -224,7 +211,7 @@ combineRelabelings :: Relabeling -> Relabeling -> Relabeling
 combineRelabelings p q = UV.accum (+) (zeroVec (0, UV.length p)) $
                          concatMap getCycle (trivialCycleNodes graph)
     where next l x = case x of
-                (v1:v2:vs) -> (v2,v2) : next l (v2:vs)
+                (v1:v2:vs) -> (v1,v2) : next l (v2:vs)
                 (v:[])     -> [(v,l)]
                 _          -> []
           getCycle x = case x of
@@ -232,7 +219,116 @@ combineRelabelings p q = UV.accum (+) (zeroVec (0, UV.length p)) $
                 _        -> []
           graph = createGraph (zipWith (\x y -> (x,y)) (UV.toList p) (UV.toList q))
 
-
 -- minimum cell representation from a given Relabeling
 mcrFromRelabeling :: Relabeling -> [Vertex]
 mcrFromRelabeling = minimumCellRep . groupCycles
+
+{----------------------------------------------------------------------
+ -
+ - Find automorphisms
+ -
+ ----------------------------------------------------------------------}
+
+type Leaf = (Partition, [Int32], [Vertex])
+
+-- get the leaf that is to the far left for the given graph and
+-- partition
+leftLeaf :: Graph -> Partition -> Leaf
+leftLeaf g p = case desc of
+                    ((v,pp):_) -> let (newp, inds, visited) = leftLeaf g pp
+                                  in (newp, indicator g p : inds, v : visited)
+                    []         -> (p, [indicator g p], [])
+               where desc = descendantPartitions g p
+
+-- find the vertex where two paths diverge and check if this vertex is
+-- contained in the third list
+pathDiffInList :: [Vertex] -> [Vertex] -> [Vertex] -> Bool
+pathDiffInList l1 l2 c | null dropped = True
+                       | otherwise    = (head dropped) `elem` c
+    where common   = commonElemsAtStart l1 l2
+          dropped  = drop common l2
+
+-- relabel a graph with respect to the given Partition
+relabelGraph :: Graph -> Partition -> Graph
+relabelGraph g p = createGraph (newedges relabeling)
+    where relabeling = UV.accum (+) (zeroVec bnds) $ zip (map head p) (range bnds)
+          newedges r = map (\(v1,v2) -> ((UV.!) r v1, (UV.!) r v2)) $ edges g
+          bnds = vertexBounds g
+
+
+checkNode v vis ams = all (elem v) [mcrFromRelabeling i| i <- drop 1 ams,
+                                    isSubsetOf vis $ invariantVertices i]
+
+newLabels g (t,_) = let tm = combineRelabelings g
+                        mcro = mcrFromRelabeling . tm
+                    in (tm t, mcro t)
+
+automorphisms p g = runST $ do
+    -- mutable state
+    automorphisms <- newSTRef []
+    labels <- newSTRef (UV.fromList (vertices g), vertices g)
+    let tree = refine g p p
+    let (leafP, leafI, leafVisited) = leftLeaf g tree
+    let leafG =  relabelGraph g leafP
+    currentP <- newSTRef leafP
+    currentI <- newSTRef leafI
+    currentG <- newSTRef leafG
+
+    let updateAutoM vv p = do
+        let gamma = partitionRelabeling (vertexBounds g) vv p
+        modifySTRef automorphisms (gamma:)
+        modifySTRef labels (newLabels gamma)
+
+    let nextNode partition visited indicators = do
+        let traverseDescendants nodes = do
+            let traverseStep (n:ns) = do
+                ams <- readSTRef automorphisms
+                if (checkNode (fst n) visited ams)
+                   then nextNode (snd n)
+                                 (fst n:visited)
+                                 (indicator g (snd n):indicators)
+                   else do return ()
+                 ---- changes here!!
+                (_, xx) <- readSTRef labels
+                if pathDiffInList leafVisited visited xx
+                    then do traverseDescendants ns
+                    else do return ()
+
+            case nodes of
+                []     -> do return ()
+                (n:ns) -> do traverseStep (n:ns)
+
+        let update cG = do
+            currentPV <- readSTRef currentP
+            currentIV <- readSTRef currentI
+            currentGV <- readSTRef currentG
+            let cmp (x,gx) (y,gy) | x == y && (getAdj gx) == (getAdj gy)   = do 
+                                         updateAutoM currentPV partition
+                                  | x < y  && (getAdj gx) < (getAdj gy)   = do
+                                         writeSTRef currentP partition
+                                         writeSTRef currentI indicators
+                                         writeSTRef currentG cG
+                                  | otherwise = do return ()
+            cmp (indicators, cG) (currentIV, currentGV)
+
+        let termNode = do
+            let cG = relabelGraph g partition
+            if indicators == leafI && getAdj cG == getAdj leafG
+                then updateAutoM partition leafP
+                else update cG
+
+        currentIV <- readSTRef currentI
+        if (startsWith leafI indicators || indicators <= currentIV)
+            then do
+               let desc = descendantPartitions g partition
+               case desc of
+                    [] -> do termNode
+                    (x:xs) -> traverseDescendants desc
+            else do return ()
+
+    -- run the tree traversal
+    nextNode tree [] [indicator g tree]
+
+    ams <- readSTRef automorphisms
+    canonical <- readSTRef currentG
+    return (canonical, ams)

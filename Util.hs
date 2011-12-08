@@ -74,3 +74,21 @@ replaceElem _ _ [] = []
 replaceElem old new (x:xs) | x == old = new:xs
                            | otherwise = x : replaceElem old new xs
 
+-- get the number of common Elements at the start of two lists
+commonElemsAtStart :: (Num a) => [a] -> [a] -> Int
+commonElemsAtStart x y = countCommon x y 0
+    where countCommon [] _ c = c
+          countCommon _ [] c = c
+          countCommon (x:xs) (y:ys) c | x == y = countCommon xs ys (c+1)
+                                      | otherwise = c
+
+-- check if all elements of one list are contained in another list
+isSubsetOf :: Eq a => [a] -> [a] -> Bool
+isSubsetOf x y = all (`elem` y) x
+
+-- compare the first elements of a list to another list
+startsWith :: (Eq a) => [a] -> [a] -> Bool
+startsWith _ [] = True
+startsWith [] _ = True
+startsWith (x:xs) (y:ys) | x /= y    = False
+                         | otherwise = startsWith xs ys
