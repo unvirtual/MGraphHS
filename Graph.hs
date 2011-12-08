@@ -1,7 +1,8 @@
 module Graph ( Vertex
              , Edge
              , Bounds
-             , Graph
+             , Graph (Graph)
+             , Row
              , adjCompare
              , getAdj
              , isNeighbour
@@ -110,21 +111,9 @@ adjCompare g1 g2 | arr1 == arr2 = EQ
 -- perform permutation on UGraph
 -- TODO: Replace this *awful* temp solution
 permuteGraphSymm :: [(Int,Int)] -> Graph -> Graph
-permuteGraphSymm p g = Graph (vertexBounds g) (permuteSymmetric p (getAdj g))
-
-permuteRows :: [(Int,Int)] -> AdjMatrix -> AdjMatrix
-permuteRows x m = (V.//) m (concat [[(i, (V.!) m j), (j, (V.!) m i)] | (i,j) <- x])
-
-permuteCols :: [(Int, Int)] -> AdjMatrix -> AdjMatrix
-permuteCols x m = V.map (f x) m
-    where f x r = (UV.//) r (concat [[(i, (UV.!) r j), (j, (UV.!) r i)] | (i,j) <- x])
-
-permuteSymmetric :: [(Int, Int)] -> AdjMatrix -> AdjMatrix
-permuteSymmetric x = permuteRows x . permuteCols x
---
---permuteCols :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
---permuteCols x m = m // [a | k <- [l..u], (i,n) <- x, a <- [((k,i), m!(k,n))]]
---    where ((l,_), (u,_)) = bounds m
---
---permuteSymmetric :: [(Int,Int)] -> Array (Int, Int) a -> Array (Int, Int) a
---permuteSymmetric x = permuteRows x . permuteCols x
+permuteGraphSymm p g = Graph (vertexBounds g) permuteAll
+    where adj = getAdj g
+          perm = V.accum (+) (V.replicate (V.length adj) 0) p
+          permUV = UV.accum (+) (UV.replicate (V.length adj) 0) p
+          permuteRows = V.backpermute adj perm
+          permuteAll = V.map (\x -> UV.backpermute x permUV) permuteRows
