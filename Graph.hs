@@ -71,27 +71,26 @@ hasLoops g = any (0 /=) [getElem g i i | i <- vertices g]
 edges :: Graph -> [Edge]
 edges g = concat [replicate (getElem g i j) (i, j) | i <- vertices g, j <- range (i, snd $ vertexBounds g) , getElem g i j /= 0]
 
-
 adjVertices :: Vertex -> Graph -> [Vertex]
 adjVertices v g = [x | x <- vertices g, getElem g v x /= 0]
 
 -- checks if v1 and v2 are directly connected
 isNeighbour :: Graph -> Vertex -> Vertex -> Bool
-isNeighbour gr v1 v2 = v1 `elem` adjVertices v2 gr
+isNeighbour gr v1 v2 = v1 `UV.elem` adjVertices v2 gr
 
 degreeNeighbour :: Graph -> Vertex -> Vertex -> Int
-degreeNeighbour g v1 v2 | v1 == v2 = (*)(-1) $ (UV.!) adj v2
-                         | otherwise = (UV.!) adj v2
+degreeNeighbour g v1 v2 | v1 == v2 = (*)(-1) $ UV.unsafeIndex adj v2
+                        | otherwise = UV.unsafeIndex adj v2
     where adj = adjacency v1 g
 
 -- adjacency for a vertex in a graph (slowest component in dfs)
 -- TODO: avoid construction of list somehow
 adjacency :: Vertex -> Graph -> Row
-adjacency v = flip (V.!) v . getAdj
+adjacency v = flip (V.unsafeIndex) v . getAdj
 
 -- return the degree of a vertex
 degree :: Vertex -> Graph -> Int
-degree v g = (UV.!) adj v + UV.sum adj
+degree v g = (UV.unsafeIndex) adj v + UV.sum adj
     where adj = adjacency v g
 
 adjCompare :: Graph -> Graph -> Ordering
