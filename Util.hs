@@ -2,6 +2,8 @@ module Util where
 
 import Data.List
 import Data.Array
+import qualified Data.Set as Set
+
 {----------------------------------------------------------------------
  -
  - Util
@@ -92,3 +94,9 @@ startsWith _ [] = True
 startsWith [] _ = True
 startsWith (x:xs) (y:ys) | x /= y    = False
                          | otherwise = startsWith xs ys
+
+nubOrd :: Ord a => [a] -> [a]
+nubOrd xs = doNub Set.empty xs
+  where doNub s (x:xs) | x `Set.member` s = doNub s xs
+                       | otherwise        = x : doNub (Set.insert x s) xs
+        doNub _ _ = []

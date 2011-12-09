@@ -43,7 +43,7 @@ canonicGraph g p = fst $ automorphisms p g
 -- given a list of Graphs, find a list of unique graphs with canonical
 -- labellings (this is the fastest implementation so far)
 isoUnique :: [Graph] -> [Graph]
-isoUnique = nub . sort . map (\x -> canonicGraph x [vertices x])
+isoUnique = nubOrd .map (\x -> canonicGraph x [vertices x])
 
 -- refine a partition with respect to another partition
 refine :: Graph -> Partition -> [Cell] -> Partition
