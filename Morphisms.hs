@@ -1,4 +1,4 @@
-module Morphisms (refine, canonicGraph, isIsomorphic) where
+module Morphisms (refine, canonicGraph, isIsomorphic, isoUnique) where
 
 import Graph
 import Util
@@ -7,6 +7,7 @@ import Data.Array
 import Data.Tree
 import Data.Int
 import Data.Bits
+import Data.List
 import qualified Data.Vector.Unboxed as UV
 import Control.Monad.ST
 import Data.STRef
@@ -39,6 +40,11 @@ automorphisms :: Partition -> Graph -> (Graph, [Relabeling])
 canonicGraph :: Graph -> Partition -> Graph
 canonicGraph g p = fst $ automorphisms p g
 
+-- given a list of Graphs, find a list of unique graphs with canonical
+-- labellings (this is the fastest implementation so far)
+isoUnique :: [Graph] -> [Graph]
+isoUnique = nub . sort . map (\x -> canonicGraph x [vertices x])
+
 -- refine a partition with respect to another partition
 refine :: Graph -> Partition -> [Cell] -> Partition
 refine gr pi ww = case ww of
@@ -51,13 +57,6 @@ refine gr pi ww = case ww of
  - Internal
  -
  ---------------------------------------------------------------------}
-
--- now we can define the Graph to be instances of Eq and Ord
-instance Eq Graph where
-    x == y = isIsomorphic x y
-
-instance Ord Graph where
-    x `compare` y =  graphCompare x y
 
 -- comparison of graphs after determining the canonical ordering
 graphCompare :: Graph -> Graph -> Ordering
@@ -302,7 +301,7 @@ automorphisms p g = runST $ do
             currentPV <- readSTRef currentP
             currentIV <- readSTRef currentI
             currentGV <- readSTRef currentG
-            let cmp (x,gx) (y,gy) | x == y && (getAdj gx) == (getAdj gy)   = do 
+            let cmp (x,gx) (y,gy) | x == y && (getAdj gx) == (getAdj gy)   = do
                                          updateAutoM currentPV partition
                                   | x < y  && (getAdj gx) < (getAdj gy)   = do
                                          writeSTRef currentP partition

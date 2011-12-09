@@ -40,6 +40,14 @@ type Row = UV.Vector Int
 type AdjMatrix = V.Vector Row
 data Graph = Graph { vertexBounds :: (Int, Int), getAdj :: AdjMatrix } deriving Show
 
+-- comparison and equality tests by adjacency matrix
+instance Eq Graph where
+    x == y = getAdj x == getAdj y
+
+instance Ord Graph where
+    x `compare` y =  getAdj x `compare` getAdj y
+
+
 createGraph :: [Edge] -> Graph
 createGraph edges = Graph bounds $ V.unfoldr buildAdj (range bounds)
     where bounds = (minimum vl, maximum vl)
