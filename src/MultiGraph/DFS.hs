@@ -1,10 +1,11 @@
-module DFS ( reachableVertices
-           , isConnected
-           , nCycles
-           , trivialCycleNodes
-           , depthFirstForest) where
+module MultiGraph.DFS 
+    ( reachableVertices
+    , isConnected
+    , nCycles
+    , trivialCycleNodes
+    , depthFirstForest) where
 
-import Graph
+import MultiGraph
 import Util
 import Data.Tree
 import Control.Monad.State
@@ -30,21 +31,21 @@ import qualified Data.Vector as V
  -------------------------------------------------------------------------------}
 
 -- return a list of all reachable vertices from a given vertex
-reachableVertices :: Graph -> Vertex -> [Vertex]
+reachableVertices :: MultiGraph -> Vertex -> [Vertex]
 reachableVertices g v = concatMap preorder (depthFirstSearch g [v])
 
 -- a graph is completely connected, if all vertices are reachable from
 -- an arbitrary start vertex (here we take the first vertex of the
 -- graph)
-isConnected :: Graph -> Bool
+isConnected :: MultiGraph -> Bool
 isConnected gr = length (reachableVertices gr (head vv)) == length vv
     where vv = vertices gr
 
 -- determine the number of loops in thq QFT sense
-nCycles :: Graph -> Int
+nCycles :: MultiGraph -> Int
 nCycles g = nLoops g + nChordCycles g
 
-trivialCycleNodes :: Graph -> [[Vertex]]
+trivialCycleNodes :: MultiGraph -> [[Vertex]]
 trivialCycleNodes = map flatten . depthFirstForest
 
 {--------------------------------------------------------------------------------
@@ -68,7 +69,7 @@ postorder (Node x xs) = concatMap postorder xs ++ [x]
 -- contains all reachable vertices from the given vertex and is
 -- infinte in size. It has to be filtered, such that every vertex
 -- appears only once as a node, using depth-first search.
-graphToTree :: Vertex -> Graph -> Tree Vertex
+graphToTree :: Vertex -> MultiGraph -> Tree Vertex
 graphToTree v gr = Node v (map (`graphToTree` gr) (UV.toList $ adjVertices v gr))
 
 -- remove duplicate vertices in a forest of vertex trees
@@ -83,18 +84,18 @@ rmDuplVertices (Node v rest:frst) = do
             return (Node v redRest:redFrst))
 
 -- perform depth-first search on a graph
-depthFirstSearch :: Graph -> [Vertex] -> Forest Vertex
+depthFirstSearch :: MultiGraph -> [Vertex] -> Forest Vertex
 depthFirstSearch g v = filterForest bnds (map (`graphToTree` g) v) falseArr
     where filterForest bnds ts = fst . runState (rmDuplVertices ts)
           falseArr = listArray bnds $ repeat False
           bnds = vertexBounds g
 
 -- unordered DFS
-depthFirstForest :: Graph -> Forest Vertex
+depthFirstForest :: MultiGraph -> Forest Vertex
 depthFirstForest g = depthFirstSearch g (vertices g)
 
 -- determine the number of chord cycles
-nChordCycles :: Graph -> Int
+nChordCycles :: MultiGraph -> Int
 nChordCycles g = runST $ do
     arr <- STA.newArray (vertexBounds g) False :: ST s (STA.STUArray s Vertex Bool)
 

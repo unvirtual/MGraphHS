@@ -1,6 +1,7 @@
-module Generate (degreeGraphs) where
+module MultiGraph.Generate 
+    (degreeGraphs) where
 
-import Graph
+import MultiGraph
 import Util
 import Control.Monad.State
 import Data.List
@@ -38,7 +39,7 @@ import Data.Function (on)
  -
  ---------------------------------------------------------------------}
 
-degreeGraphs :: [(Int,Int)] -> [Graph]
+degreeGraphs :: [(Int,Int)] -> [MultiGraph]
 degreeGraphs degreeSeq = map (adjMatToGraph . snd) reduction
     where dsClean = sortBy (compare `on` fst)
                     $ filter (\(x,y) -> (x /= 0) && (y /= 0)) degreeSeq
@@ -48,7 +49,7 @@ degreeGraphs degreeSeq = map (adjMatToGraph . snd) reduction
 
 -- generate all graphs on `n` vertices with all possible combinations
 -- of degrees `degrees`
-allGraphs :: Int -> [Int] -> [Graph]
+allGraphs :: Int -> [Int] -> [MultiGraph]
 allGraphs nvert degrees = undefined
 
 {---------------------------------------------------------------------
@@ -69,7 +70,7 @@ initIAdj :: Int -> AdjMat
 initIAdj n = replicate n []
 
 -- temporary helper function
-adjMatToGraph :: AdjMat -> Graph
+adjMatToGraph :: AdjMat -> MultiGraph
 adjMatToGraph m = createGraph (amEdges m)
   where amEdges m = [(fst x, y) | x <- zz, y <- snd x]
                     where zz = zip [0..] m

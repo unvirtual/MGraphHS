@@ -1,8 +1,12 @@
-module Morphisms (refine, canonicGraph, isIsomorphic, isoUnique) where
+module MultiGraph.Morphisms 
+    ( refine
+    , canonicGraph
+    , isIsomorphic
+    , isoUnique) where
 
-import Graph
 import Util
-import DFS
+import MultiGraph
+import MultiGraph.DFS
 import Data.Array
 import Data.Tree
 import Data.Int
@@ -27,26 +31,26 @@ import Data.STRef
  ---------------------------------------------------------------------}
 
 -- check if twop graphs are isomorphic
-isIsomorphic :: Graph -> Graph -> Bool
+isIsomorphic :: MultiGraph -> MultiGraph -> Bool
 isIsomorphic g1 g2 = (v1 == v2) && arr g1 v1 == arr g2 v2
                      where (v1,v2) = (vertices g1, vertices g2)
                            arr g v = getAdj $ canonicGraph g [v]
 
 -- return the automorphisms of a given graph together with the canonically
 -- labeled graph
-automorphisms :: Partition -> Graph -> (Graph, [Relabeling])
+automorphisms :: Partition -> MultiGraph -> (MultiGraph, [Relabeling])
 
 -- permute the adjacency matrix and return the relabeled graph
-canonicGraph :: Graph -> Partition -> Graph
+canonicGraph :: MultiGraph -> Partition -> MultiGraph
 canonicGraph g p = fst $ automorphisms p g
 
 -- given a list of Graphs, find a list of unique graphs with canonical
 -- labellings (this is the fastest implementation so far)
-isoUnique :: [Graph] -> [Graph]
+isoUnique :: [MultiGraph] -> [MultiGraph]
 isoUnique = nubOrd .map (\x -> canonicGraph x [vertices x])
 
 -- refine a partition with respect to another partition
-refine :: Graph -> Partition -> [Cell] -> Partition
+refine :: MultiGraph -> Partition -> [Cell] -> Partition
 refine gr pi ww = case ww of
     [] -> pi
     (w:ws) -> refine gr pinew wsnew
@@ -59,7 +63,7 @@ refine gr pi ww = case ww of
  ---------------------------------------------------------------------}
 
 -- comparison of graphs after determining the canonical ordering
-graphCompare :: Graph -> Graph -> Ordering
+graphCompare :: MultiGraph -> MultiGraph -> Ordering
 graphCompare g1 g2 | nVertices g1 /= nVertices g2 = nVertices g1 `compare` nVertices g2
                    | otherwise = adjCompare cg1 cg2
     where cg1 = canonicGraph g1 (unitPartition (vertexBounds g1))
@@ -115,7 +119,7 @@ cellMapping p q = zip (minimumCellRep p) (minimumCellRep q)
 
 -- refine a given current pi elem Pi_G recursively given a w and ws,
 -- return the new pi and the modified ws
-refinePi :: Graph -> Partition -> Cell -> [Cell] -> (Partition, [Cell])
+refinePi :: MultiGraph -> Partition -> Cell -> [Cell] -> (Partition, [Cell])
 refinePi gr [] wi ws = ([], ws)
 refinePi gr pi@(pie:pis) wi ws
     | isDiscrete pi = (pi, ws)
@@ -127,7 +131,7 @@ refinePi gr pi@(pie:pis) wi ws
 -- Given a cell pie in pi, a list of cells ws and an element w, return
 -- the ordered parition of pie with respect to w and the new list of
 -- cells ws
-refinePiE :: Graph -> Cell -> Cell -> [Cell] -> (Partition, [Cell])
+refinePiE :: MultiGraph -> Cell -> Cell -> [Cell] -> (Partition, [Cell])
 refinePiE gr pie wi ws
     | isUnit xx = ([pie], ws)
     | otherwise = (xx, wsmod)
@@ -137,11 +141,11 @@ refinePiE gr pie wi ws
 
 -- Given a cell W find X = (X_1,..,X_s) which is an element of all partition on a
 -- given cell V such that d(x,W) < d(y,W) for x in X_i and y in X_j if i<j
-orderedPartition :: Graph -> Cell -> Cell -> Partition
+orderedPartition :: MultiGraph -> Cell -> Cell -> Partition
 orderedPartition gr w = groupSort (cellDegree gr w)
 
 -- number of vertices in a cell adjacent to a given vertex
-cellDegree :: Graph -> Cell -> Vertex -> Int
+cellDegree :: MultiGraph -> Cell -> Vertex -> Int
 cellDegree gr c v = sum $ map (degreeNeighbour gr v) c
 
 -- the scalar product pi.v of a partition with a vertex is defined as
@@ -158,18 +162,18 @@ parallelProject (p:ps) v | (not . isTrivial) p && vInCell v p = [v]:extractV v p
 
 -- the orthogonal projection pi \ortho v of a partition and a vertex
 -- is defined as R(G, pi.v, [[v]])
-orthoProject :: Graph -> Partition -> Vertex -> Partition
+orthoProject :: MultiGraph -> Partition -> Vertex -> Partition
 orthoProject gr pi v = refine gr (parallelProject pi v) [[v]]
 
 -- next level of descendants of given parition
-descendantPartitions :: Graph -> Partition -> [(Vertex, Partition)]
+descendantPartitions :: MultiGraph -> Partition -> [(Vertex, Partition)]
 descendantPartitions g p = dp g p (verts p)
     where verts vv | isDiscrete vv = []
                    | otherwise= head $ dropWhile (isTrivial) vv
           dp g p vv = zip vv $ map (orthoProject g p) vv
 
 -- trivial indicator function (hash for given partition)
-indicator :: Graph -> Partition -> Int32
+indicator :: MultiGraph -> Partition -> Int32
 indicator g = orderedHash . map unorderedHash . inner
     where inner = foldr
                   (\p -> (:) (map (fromIntegral . cellDegree g p) (vertices g))) []
@@ -232,7 +236,7 @@ type Leaf = (Partition, [Int32], [Vertex])
 
 -- get the leaf that is to the far left for the given graph and
 -- partition
-leftLeaf :: Graph -> Partition -> Leaf
+leftLeaf :: MultiGraph -> Partition -> Leaf
 leftLeaf g p = case desc of
                     ((v,pp):_) -> let (newp, inds, visited) = leftLeaf g pp
                                   in (newp, indicator g p : inds, v : visited)
@@ -248,7 +252,7 @@ pathDiffInList l1 l2 c | null dropped = True
           dropped  = drop common l2
 
 -- relabel a graph with respect to the given Partition
-relabelGraph :: Graph -> Partition -> Graph
+relabelGraph :: MultiGraph -> Partition -> MultiGraph
 relabelGraph g p = createGraph (newedges relabeling)
     where relabeling = UV.accum (+) (zeroVec bnds) $ zip (map head p) (range bnds)
           newedges r = map (\(v1,v2) -> ((UV.!) r v1, (UV.!) r v2)) $ edges g

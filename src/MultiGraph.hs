@@ -1,7 +1,8 @@
-module Graph ( Vertex
+module MultiGraph 
+             ( Vertex
              , Edge
              , Bounds
-             , Graph (Graph)
+             , MultiGraph (MultiGraph)
              , Row
              , adjCompare
              , getAdj
@@ -40,18 +41,18 @@ type Bounds = (Vertex, Vertex)
 -- matrix
 type Row = UV.Vector Int
 type AdjMatrix = V.Vector Row
-data Graph = Graph { vertexBounds :: (Int, Int), getAdj :: AdjMatrix } deriving Show
+data MultiGraph = MultiGraph { vertexBounds :: (Int, Int), getAdj :: AdjMatrix } deriving Show
 
 -- comparison and equality tests by adjacency matrix
-instance Eq Graph where
+instance Eq MultiGraph where
     x == y = getAdj x == getAdj y
 
-instance Ord Graph where
+instance Ord MultiGraph where
     x `compare` y =  getAdj x `compare` getAdj y
 
 
-createGraph :: [Edge] -> Graph
-createGraph edges = Graph bounds $ V.unfoldr buildAdj (range bounds)
+createGraph :: [Edge] -> MultiGraph
+createGraph edges = MultiGraph bounds $ V.unfoldr buildAdj (range bounds)
     where bounds = (minimum vl, maximum vl)
           vl = foldr (\(x,y) acc -> x:y:acc) [] edges
           buildAdj :: [Vertex] -> Maybe (Row, [Vertex])
@@ -63,60 +64,60 @@ createGraph edges = Graph bounds $ V.unfoldr buildAdj (range bounds)
                             | snd edge == v = (fst edge, 1)
                             | otherwise = (0,0)
 
-getElem :: Graph -> Vertex -> Vertex -> Int
+getElem :: MultiGraph -> Vertex -> Vertex -> Int
 getElem g v1 = (UV.!) (adjacency v1 g)
 
-vertices :: Graph -> [Vertex]
+vertices :: MultiGraph -> [Vertex]
 vertices = range . vertexBounds
 
-nVertices :: Graph -> Int
+nVertices :: MultiGraph -> Int
 nVertices g = snd v - fst v + 1
     where v = vertexBounds g
 
 -- check for edges starting and ending in the same vertex
-hasLoops :: Graph -> Bool
+hasLoops :: MultiGraph -> Bool
 hasLoops g = any (0 /=) [getElem g i i | i <- vertices g]
 
 
 -- give the number of loops
-nLoops :: Graph -> Int
+nLoops :: MultiGraph -> Int
 nLoops g = length $ filter (0 /=) [getElem g i i | i <- vertices g]
 
 -- all edges of a graph
-edges :: Graph -> [Edge]
+edges :: MultiGraph -> [Edge]
 edges g = concat [replicate (getElem g i j) (i, j) | i <- vertices g, j <- range (i, snd $ vertexBounds g) , getElem g i j /= 0]
 
 -- adjacent vertices to a given vertex
-adjVertices :: Vertex -> Graph -> Row
+adjVertices :: Vertex -> MultiGraph -> Row
 adjVertices v g = UV.findIndices ((/=) 0) (adjacency v g)
 
 -- adjacent vertices to a given vertex including repetitions for
 -- parallel edges
-adjVerticesWReps :: Vertex -> Graph -> [Vertex]
+adjVerticesWReps :: Vertex -> MultiGraph -> [Vertex]
 adjVerticesWReps v g = fl
     where ll = UV.toList $ adjacency v g
           fl = concatMap (\(v,r) -> replicate r v) $ zip [0..] ll
 
 -- checks if v1 and v2 are directly connected
-isNeighbour :: Graph -> Vertex -> Vertex -> Bool
+isNeighbour :: MultiGraph -> Vertex -> Vertex -> Bool
 isNeighbour gr v1 v2 = v1 `UV.elem` adjVertices v2 gr
 
-degreeNeighbour :: Graph -> Vertex -> Vertex -> Int
+degreeNeighbour :: MultiGraph -> Vertex -> Vertex -> Int
 degreeNeighbour g v1 v2 | v1 == v2 = (*)(-1) $ UV.unsafeIndex adj v2
                         | otherwise = UV.unsafeIndex adj v2
     where adj = adjacency v1 g
 
 -- adjacency for a vertex in a graph (slowest component in dfs)
 -- TODO: avoid construction of list somehow
-adjacency :: Vertex -> Graph -> Row
+adjacency :: Vertex -> MultiGraph -> Row
 adjacency v = flip (V.unsafeIndex) v . getAdj
 
 -- return the degree of a vertex
-degree :: Vertex -> Graph -> Int
+degree :: Vertex -> MultiGraph -> Int
 degree v g = (UV.unsafeIndex) adj v + UV.sum adj
     where adj = adjacency v g
 
-adjCompare :: Graph -> Graph -> Ordering
+adjCompare :: MultiGraph -> MultiGraph -> Ordering
 adjCompare g1 g2 | arr1 == arr2 = EQ
                  | otherwise    = diff $ diffElems arr1 arr2
     where arr1 = getAdj g1
@@ -132,8 +133,8 @@ adjCompare g1 g2 | arr1 == arr2 = EQ
 
 -- perform permutation on UGraph
 -- TODO: Replace this *awful* temp solution
-permuteGraphSymm :: [(Int,Int)] -> Graph -> Graph
-permuteGraphSymm p g = Graph (vertexBounds g) permuteAll
+permuteGraphSymm :: [(Int,Int)] -> MultiGraph -> MultiGraph
+permuteGraphSymm p g = MultiGraph (vertexBounds g) permuteAll
     where adj = getAdj g
           perm = V.accum (+) (V.replicate (V.length adj) 0) p
           permUV = UV.accum (+) (UV.replicate (V.length adj) 0) p
