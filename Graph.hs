@@ -9,6 +9,7 @@ module Graph ( Vertex
              , degreeNeighbour
              , createGraph
              , hasLoops
+             , nLoops
              , vertices
              , nVertices
              , edges
@@ -74,6 +75,11 @@ nVertices g = snd v - fst v + 1
 -- check for edges starting and ending in the same vertex
 hasLoops :: Graph -> Bool
 hasLoops g = any (0 /=) [getElem g i i | i <- vertices g]
+
+
+-- give the number of loops
+nLoops :: Graph -> Int
+nLoops g = length $ filter (0 /=) [getElem g i i | i <- vertices g]
 
 -- all edges of a graph
 edges :: Graph -> [Edge]
