@@ -1,4 +1,4 @@
-module MultiGraph 
+module MultiGraph
              ( Vertex
              , Edge
              , Bounds
@@ -19,7 +19,8 @@ module MultiGraph
              , adjVerticesWReps
              , vertexBounds
              , permuteGraphSymm
-             , degree) where
+             , degree
+             , degreeSequence) where
 
 import Control.Monad.State
 import Data.Tree
@@ -27,6 +28,8 @@ import Data.List
 import Data.Array
 import qualified Data.Vector.Unboxed as UV
 import qualified Data.Vector as V
+import Data.Function (on)
+import Util
 
 {--------------------------------------------------------------------------------
  -
@@ -116,6 +119,11 @@ adjacency v = flip (V.unsafeIndex) v . getAdj
 degree :: Vertex -> MultiGraph -> Int
 degree v g = (UV.unsafeIndex) adj v + UV.sum adj
     where adj = adjacency v g
+
+degreeSequence :: MultiGraph -> [(Vertex, Int)]
+degreeSequence g = sortBy (compare `on` fst) $
+                   occurences $
+                   map (flip degree g) (vertices g)
 
 adjCompare :: MultiGraph -> MultiGraph -> Ordering
 adjCompare g1 g2 | arr1 == arr2 = EQ
