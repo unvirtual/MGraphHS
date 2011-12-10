@@ -1,11 +1,18 @@
-module DFS (reachableVertices, isConnected, trivialCycleNodes) where
+module DFS ( reachableVertices
+           , isConnected
+           , nCycles
+           , trivialCycleNodes
+           , depthFirstForest) where
+
 import Graph
 import Util
 import Data.Tree
 import Control.Monad.State
 import Data.Array
+import Control.Monad.ST
+import qualified Data.Array.ST as STA
 import qualified Data.Vector.Unboxed as UV
-
+import qualified Data.Vector as V
 
 {--------------------------------------------------------------------------------
  -
@@ -13,10 +20,8 @@ import qualified Data.Vector.Unboxed as UV
  -
  -  * Implementation of DFS equivalent to Data.Graph, but uses custom Graph type
  -  * TODO: biconnected components
- -  * TODO: find cycles in multigraph
  -
  -------------------------------------------------------------------------------}
-
 
 {--------------------------------------------------------------------------------
  -
@@ -35,6 +40,10 @@ isConnected :: Graph -> Bool
 isConnected gr = length (reachableVertices gr (head vv)) == length vv
     where vv = vertices gr
 
+-- determine the number of loops in thq QFT sense
+nCycles :: Graph -> Int
+nCycles g = nLoops g + nChordCycles g
+
 trivialCycleNodes :: Graph -> [[Vertex]]
 trivialCycleNodes = map flatten . depthFirstForest
 
@@ -45,6 +54,7 @@ trivialCycleNodes = map flatten . depthFirstForest
  -------------------------------------------------------------------------------}
 
 type Visited = Array Vertex Bool
+type VisitedEdges = (Array Vertex Bool, [(Int, Int)], Int)
 
 -- preorder of a B-tree
 preorder :: Tree a -> [a]
@@ -83,3 +93,20 @@ depthFirstSearch g v = filterForest bnds (map (`graphToTree` g) v) falseArr
 depthFirstForest :: Graph -> Forest Vertex
 depthFirstForest g = depthFirstSearch g (vertices g)
 
+-- determine the number of chord cycles
+nChordCycles :: Graph -> Int
+nChordCycles g = runST $ do
+    arr <- STA.newArray (vertexBounds g) False :: ST s (STA.STUArray s Vertex Bool)
+
+    let markVertex cycles v = do
+         seen <- STA.readArray arr v
+         if (seen)
+             then return (cycles + 1)
+             else do STA.writeArray arr v True
+                     return cycles
+
+    let findNCycles c v = do let adj = filter (\x -> x > v) $ adjVerticesWReps v g
+                             foldM (markVertex) c adj
+
+    let order = concatMap postorder $ depthFirstSearch g (vertices g)
+    foldM (findNCycles) 0 order
