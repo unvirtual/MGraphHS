@@ -100,3 +100,14 @@ nubOrd xs = doNub Set.empty xs
   where doNub s (x:xs) | x `Set.member` s = doNub s xs
                        | otherwise        = x : doNub (Set.insert x s) xs
         doNub _ _ = []
+
+-- removes the first occurence of the given elemen in the list
+removeFirst _ []                 = []
+removeFirst x (y:ys) | x == y    = ys
+                     | otherwise = y : removeFirst x ys
+
+-- return the tuple if it exists in the list, regardless of order
+symTupleElem :: (Eq a) => (a, a) -> [(a,a)] -> Maybe (a, a)
+symTupleElem (e0, e1) l | (e0, e1) `elem` l = Just (e0, e1)
+                        | (e1, e0) `elem` l = Just (e1, e0)
+                        | otherwise = Nothing
