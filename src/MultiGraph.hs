@@ -84,7 +84,7 @@ hasLoops g = any (0 /=) [getElem g i i | i <- vertices g]
 
 -- give the number of loops
 nLoops :: MultiGraph -> Int
-nLoops g = length $ filter (0 /=) [getElem g i i | i <- vertices g]
+nLoops g = sum $ filter (0 /=) [getElem g i i | i <- vertices g]
 
 -- all edges of a graph
 edges :: MultiGraph -> [Edge]
