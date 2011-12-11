@@ -1,4 +1,4 @@
-module MultiGraph.DFS 
+module MultiGraph.DFS
     ( reachableVertices
     , isConnected
     , nCycles
@@ -14,6 +14,10 @@ import Control.Monad.ST
 import qualified Data.Array.ST as STA
 import qualified Data.Vector.Unboxed as UV
 import qualified Data.Vector as V
+
+import Data.STRef
+
+import Debug.Trace
 
 {--------------------------------------------------------------------------------
  -
@@ -98,16 +102,28 @@ depthFirstForest g = depthFirstSearch g (vertices g)
 nChordCycles :: MultiGraph -> Int
 nChordCycles g = runST $ do
     arr <- STA.newArray (vertexBounds g) False :: ST s (STA.STUArray s Vertex Bool)
+    edgs <- newSTRef (edges g)
+    cycles <- newSTRef 0
 
-    let markVertex cycles v = do
-         seen <- STA.readArray arr v
-         if (seen)
-             then return (cycles + 1)
+    let updateEdges v v0 = do
+         e <- readSTRef edgs
+         let se = symTupleElem (v,v0) e
+         case se of
+            Just (a,b) -> do modifySTRef edgs (removeFirst (a,b))
+                             return True
+            Nothing    -> do return False
+
+    let markVertex v0 v = do
+         seenVertex <- STA.readArray arr v
+         updatedEdge <- updateEdges v0 v
+         if seenVertex
+             then when updatedEdge $ do modifySTRef cycles (+1)
              else do STA.writeArray arr v True
-                     return cycles
 
-    let findNCycles c v = do let adj = filter (\x -> x > v) $ adjVerticesWReps v g
-                             foldM (markVertex) c adj
+    let findNCycles v = do let adj = filter (\x -> x /= v) $ adjVerticesWReps v g
+                           mapM (markVertex v) adj
 
-    let order = concatMap postorder $ depthFirstSearch g (vertices g)
-    foldM (findNCycles) 0 order
+    let order = concatMap preorder $ depthFirstForest g
+    mapM (findNCycles) order
+    c <- readSTRef cycles
+    return c
