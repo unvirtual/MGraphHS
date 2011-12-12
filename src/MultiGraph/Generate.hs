@@ -15,13 +15,13 @@ import Data.Function (on)
  - >= d_2 >= ..  for N_i nodes of degree d_i, the graph is constructed
  - by finding all d_j arcs emerging from a node n \in N_j. Nodes are
  - organized in equivalence classes EC = {(NE_1, d_1) ... (NE_c,d_c)}
- - that represent interconnections between the same vertices and arcs
+ - that represent interconnections between the same nodes and arcs
  - are formed between the elements of EC. Initially, EC = D. During
  - construction, EC is refined such that after determining the next
  - d_j connections from a node n_j, any two nodes are found in the
  - same EC_i only if they were in the same class before and were both
  - (not) connected to n_j. The possible permutations of m connections
- - from a vertex of degree d_i=m to vertices in EC are called
+ - from a node of degree d_i=m to nodes in EC are called
  - m-sequences
  -
  - The resulting list of integrals contains both connected and
@@ -44,10 +44,10 @@ degreeGraphs degreeSeq = map (adjMatToGraph . snd) reduction
     where dsClean = sortBy (compare `on` fst)
                     $ filter (\(x,y) -> (x /= 0) && (y /= 0)) degreeSeq
           p = initPartition dsClean
-          red =  genDegGraphs (p, initIAdj (ecPartitionVertices p))
+          red =  genDegGraphs (p, initIAdj (ecPartitionNodes p))
           reduction =  filter (any (\y -> y /= []) . snd) red
 
--- generate all graphs on `n` vertices with all possible combinations
+-- generate all graphs on `n` nodes with all possible combinations
 -- of degrees `degrees`
 allGraphs :: Int -> [Int] -> [MultiGraph]
 allGraphs nvert degrees = undefined
@@ -57,7 +57,7 @@ allGraphs nvert degrees = undefined
  - Internal
  -
  ---------------------------------------------------------------------}
-data EquivClass = EC { order :: Int, verts :: [Vertex] } deriving (Eq, Show)
+data EquivClass = EC { order :: Int, verts :: [Node] } deriving (Eq, Show)
 -- we use simple lists for now, but other data types might be
 -- beneficial for speed
 type ECPartition = [EquivClass]
@@ -74,15 +74,15 @@ adjMatToGraph :: AdjMat -> MultiGraph
 adjMatToGraph m = createGraph (amEdges m)
   where amEdges m = [(fst x, y) | x <- zz, y <- snd x]
                     where zz = zip [0..] m
--- number of vertices in an equivalence class
+-- number of nodes in an equivalence class
 ecLength :: EquivClass -> Int
 ecLength = length . verts
 
--- number of vertices in an ECPartition
-ecPartitionVertices :: ECPartition -> Int
-ecPartitionVertices = sum . map ecLength
+-- number of nodes in an ECPartition
+ecPartitionNodes :: ECPartition -> Int
+ecPartitionNodes = sum . map ecLength
 
--- get an ECPartition for the given (degree, #vertices) pairs. Vertex
+-- get an ECPartition for the given (degree, #nodes) pairs. Node
 -- count starts at 0
 initPartition :: [(Int, Int)] -> ECPartition
 initPartition xxs = f 0 xxs
@@ -115,7 +115,7 @@ connections p order = concatMap (con p) $ arcSeq order p
      where con p arcs = map (zip p) $ zipWithM connectionCombinations arcs p
 
 -- return all connections grouped by number of loops to the start
--- vertex
+-- node
 connectionsWLoops :: ECPartition -> Int -> [(Int, [[ECNodeSelection]])]
 connectionsWLoops x m = filter prune $ map (conMap x m) [0,2..m]
     where prune s = case s of
@@ -125,7 +125,7 @@ connectionsWLoops x m = filter prune $ map (conMap x m) [0,2..m]
 
 -- split an equivalence class and modify the adjacancy matrix state to
 -- reflect the new arcs
-splitEC :: Vertex -> ECNodeSelection -> AdjMatState ECPartition
+splitEC :: Node -> ECNodeSelection -> AdjMatState ECPartition
 splitEC vi ec = liftM (map fst) $ splitAll ec
     where splitAll :: ECNodeSelection -> AdjMatState [ECNodeSelection]
           splitAll (EC _ [], _) = return []
@@ -146,9 +146,9 @@ splitEC vi ec = liftM (map fst) $ splitAll ec
           ecTake :: Int -> Int -> EquivClass -> EquivClass
           ecTake i oo (EC o vs) = EC (o - oo) (take i vs)
 
--- split a partition for a given start vertex, number of loops at the
--- vertex and a partition represented as ECNodeSelection
-splitPartition :: Vertex -> Int -> [ECNodeSelection] -> AdjMatState ECPartition
+-- split a partition for a given start node, number of loops at the
+-- node and a partition represented as ECNodeSelection
+splitPartition :: Node -> Int -> [ECNodeSelection] -> AdjMatState ECPartition
 splitPartition v 0 [] = return []
 splitPartition v selfc s = case s of
     [] -> modify (addloops v selfc) >> return []
@@ -157,12 +157,12 @@ splitPartition v selfc s = case s of
         y <- splitPartition v selfc ss
         return (x ++ y)
 
--- Add arcs from a given vertex to a list of vertices, order times
-addarcs :: Vertex -> Int -> [Vertex] -> AdjMat -> AdjMat
+-- Add arcs from a given node to a list of nodes, order times
+addarcs :: Node -> Int -> [Node] -> AdjMat -> AdjMat
 addarcs v order vs = appendsortedAtNth v (concat $ replicate order vs)
 
--- Add loops to the given vertex
-addloops :: Vertex -> Int -> AdjMat -> AdjMat
+-- Add loops to the given node
+addloops :: Node -> Int -> AdjMat -> AdjMat
 addloops v o = appendsortedAtNth v (selfcouplings v o)
     where selfcouplings v o = replicate (o `div` 2) v
 

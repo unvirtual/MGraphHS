@@ -33,7 +33,7 @@ import Data.STRef
 -- check if twop graphs are isomorphic
 isIsomorphic :: MultiGraph -> MultiGraph -> Bool
 isIsomorphic g1 g2 = (v1 == v2) && arr g1 v1 == arr g2 v2
-                     where (v1,v2) = (vertices g1, vertices g2)
+                     where (v1,v2) = (nodes g1, nodes g2)
                            arr g v = getAdj $ canonicGraph g [v]
 
 -- return the automorphisms of a given graph together with the canonically
@@ -47,7 +47,7 @@ canonicGraph g p = fst $ automorphisms p g
 -- given a list of Graphs, find a list of unique graphs with canonical
 -- labellings (this is the fastest implementation so far)
 isoUnique :: [MultiGraph] -> [MultiGraph]
-isoUnique = nubOrd .map (\x -> canonicGraph x [vertices x])
+isoUnique = nubOrd .map (\x -> canonicGraph x [nodes x])
 
 -- refine a partition with respect to another partition
 refine :: MultiGraph -> Partition -> [Cell] -> Partition
@@ -64,12 +64,12 @@ refine gr pi ww = case ww of
 
 -- comparison of graphs after determining the canonical ordering
 graphCompare :: MultiGraph -> MultiGraph -> Ordering
-graphCompare g1 g2 | nVertices g1 /= nVertices g2 = nVertices g1 `compare` nVertices g2
+graphCompare g1 g2 | nNodes g1 /= nNodes g2 = nNodes g1 `compare` nNodes g2
                    | otherwise = adjCompare cg1 cg2
-    where cg1 = canonicGraph g1 (unitPartition (vertexBounds g1))
-          cg2 = canonicGraph g2 (unitPartition (vertexBounds g2))
+    where cg1 = canonicGraph g1 (unitPartition (nodeBounds g1))
+          cg2 = canonicGraph g2 (unitPartition (nodeBounds g2))
 
-type Cell = [Vertex]
+type Cell = [Node]
 -- set of ordered disjoint non-empty cells of a set S with union P = S
 -- Use mutable arrays of mutable arrays as many updates of the
 -- elements are necessary
@@ -95,16 +95,16 @@ isDiscrete = all isTrivial
 isUnit :: Partition -> Bool
 isUnit = (==) 1 . length
 
-fix :: Partition -> [Vertex]
+fix :: Partition -> [Node]
 fix = concat . filter isTrivial
 
-supp :: Partition -> [Vertex]
+supp :: Partition -> [Node]
 supp = concat . filter (not . isTrivial)
 
 -- {min V_i | V_i \in partition}
--- Assumes that the vertices in each cell are sorted in increasing
+-- Assumes that the nodes in each cell are sorted in increasing
 -- order
-minimumCellRep :: Partition -> [Vertex]
+minimumCellRep :: Partition -> [Node]
 minimumCellRep = map head
 
 cellMapping :: Partition -> Partition -> [Edge]
@@ -144,14 +144,14 @@ refinePiE gr pie wi ws
 orderedPartition :: MultiGraph -> Cell -> Cell -> Partition
 orderedPartition gr w = groupSort (cellDegree gr w)
 
--- number of vertices in a cell adjacent to a given vertex
-cellDegree :: MultiGraph -> Cell -> Vertex -> Int
+-- number of nodes in a cell adjacent to a given node
+cellDegree :: MultiGraph -> Cell -> Node -> Int
 cellDegree gr c v = sum $ map (degreeNeighbour gr v) c
 
--- the scalar product pi.v of a partition with a vertex is defined as
--- extracting the vertex from its cell and inserting it as a trivial
+-- the scalar product pi.v of a partition with a node is defined as
+-- extracting the node from its cell and inserting it as a trivial
 -- cell before the matching cell
-parallelProject :: Partition -> Vertex -> Partition
+parallelProject :: Partition -> Node -> Partition
 parallelProject [] _ = []
 parallelProject (p:ps) v | (not . isTrivial) p && vInCell v p = [v]:extractV v p:ps
                          | otherwise = p : parallelProject ps v
@@ -160,13 +160,13 @@ parallelProject (p:ps) v | (not . isTrivial) p && vInCell v p = [v]:extractV v p
           extractV v (c:cs) | c == v = cs
                             | otherwise = c : extractV v cs
 
--- the orthogonal projection pi \ortho v of a partition and a vertex
+-- the orthogonal projection pi \ortho v of a partition and a node
 -- is defined as R(G, pi.v, [[v]])
-orthoProject :: MultiGraph -> Partition -> Vertex -> Partition
+orthoProject :: MultiGraph -> Partition -> Node -> Partition
 orthoProject gr pi v = refine gr (parallelProject pi v) [[v]]
 
 -- next level of descendants of given parition
-descendantPartitions :: MultiGraph -> Partition -> [(Vertex, Partition)]
+descendantPartitions :: MultiGraph -> Partition -> [(Node, Partition)]
 descendantPartitions g p = dp g p (verts p)
     where verts vv | isDiscrete vv = []
                    | otherwise= head $ dropWhile (isTrivial) vv
@@ -176,7 +176,7 @@ descendantPartitions g p = dp g p (verts p)
 indicator :: MultiGraph -> Partition -> Int32
 indicator g = orderedHash . map unorderedHash . inner
     where inner = foldr
-                  (\p -> (:) (map (fromIntegral . cellDegree g p) (vertices g))) []
+                  (\p -> (:) (map (fromIntegral . cellDegree g p) (nodes g))) []
           -- order independent hash of a vector
           unorderedHash = foldl xor 0
           -- rotating hash
@@ -194,9 +194,9 @@ type Relabeling = UV.Vector Int
 toRelabeling :: Bounds -> [(Int, Int)] -> Relabeling
 toRelabeling (l,u) list = UV.accum (+) (UV.replicate (u-l+1) 0) list
 
--- vertices invariant under given Relabeling
-invariantVertices :: Relabeling -> [Vertex]
-invariantVertices = UV.toList . UV.ifilter (\i v -> i == v)
+-- nodes invariant under given Relabeling
+invariantNodes :: Relabeling -> [Node]
+invariantNodes = UV.toList . UV.ifilter (\i v -> i == v)
 
 -- relabel a partition with respect to another one
 partitionRelabeling :: Bounds -> Partition -> Partition -> Relabeling
@@ -223,7 +223,7 @@ combineRelabelings p q = UV.accum (+) (zeroVec (0, UV.length p)) $
           graph = createGraph (zipWith (\x y -> (x,y)) (UV.toList p) (UV.toList q))
 
 -- minimum cell representation from a given Relabeling
-mcrFromRelabeling :: Relabeling -> [Vertex]
+mcrFromRelabeling :: Relabeling -> [Node]
 mcrFromRelabeling = minimumCellRep . groupCycles
 
 {----------------------------------------------------------------------
@@ -232,7 +232,7 @@ mcrFromRelabeling = minimumCellRep . groupCycles
  -
  ----------------------------------------------------------------------}
 
-type Leaf = (Partition, [Int32], [Vertex])
+type Leaf = (Partition, [Int32], [Node])
 
 -- get the leaf that is to the far left for the given graph and
 -- partition
@@ -243,9 +243,9 @@ leftLeaf g p = case desc of
                     []         -> (p, [indicator g p], [])
                where desc = descendantPartitions g p
 
--- find the vertex where two paths diverge and check if this vertex is
+-- find the node where two paths diverge and check if this node is
 -- contained in the third list
-pathDiffInList :: [Vertex] -> [Vertex] -> [Vertex] -> Bool
+pathDiffInList :: [Node] -> [Node] -> [Node] -> Bool
 pathDiffInList l1 l2 c | null dropped = True
                        | otherwise    = (head dropped) `elem` c
     where common   = commonElemsAtStart l1 l2
@@ -256,11 +256,11 @@ relabelGraph :: MultiGraph -> Partition -> MultiGraph
 relabelGraph g p = createGraph (newedges relabeling)
     where relabeling = UV.accum (+) (zeroVec bnds) $ zip (map head p) (range bnds)
           newedges r = map (\(v1,v2) -> ((UV.!) r v1, (UV.!) r v2)) $ edges g
-          bnds = vertexBounds g
+          bnds = nodeBounds g
 
 
 checkNode v vis ams = all (elem v) [mcrFromRelabeling i| i <- drop 1 ams,
-                                    isSubsetOf vis $ invariantVertices i]
+                                    isSubsetOf vis $ invariantNodes i]
 
 newLabels g (t,_) = let tm = combineRelabelings g
                         mcro = mcrFromRelabeling . tm
@@ -269,7 +269,7 @@ newLabels g (t,_) = let tm = combineRelabelings g
 automorphisms p g = runST $ do
     -- mutable state
     automorphisms <- newSTRef []
-    labels <- newSTRef (UV.fromList (vertices g), vertices g)
+    labels <- newSTRef (UV.fromList (nodes g), nodes g)
     let tree = refine g p p
     let (leafP, leafI, leafVisited) = leftLeaf g tree
     let leafG =  relabelGraph g leafP
@@ -278,7 +278,7 @@ automorphisms p g = runST $ do
     currentG <- newSTRef leafG
 
     let updateAutoM vv p = do
-        let gamma = partitionRelabeling (vertexBounds g) vv p
+        let gamma = partitionRelabeling (nodeBounds g) vv p
         modifySTRef automorphisms (gamma:)
         modifySTRef labels (newLabels gamma)
 
