@@ -86,6 +86,15 @@ hasLoops g = any (0 /=) [getElem g i i | i <- vertices g]
 nLoops :: MultiGraph -> Int
 nLoops g = sum $ filter (0 /=) [getElem g i i | i <- vertices g]
 
+-- return external vertices (degree == 1)
+externalVertices :: MultiGraph -> [Vertex]
+externalVertices g = filter (\x -> degree x g == 1) $ vertices g
+
+-- return internal vertices (degree > 1)
+internalVertices :: MultiGraph -> [Vertex]
+internalVertices g = filter (\x -> not $ x `elem` external) $ vertices g
+    where external = externalVertices g
+
 -- all edges of a graph
 edges :: MultiGraph -> [Edge]
 edges g = concat [replicate (getElem g i j) (i, j) | i <- vertices g, j <- range (i, snd $ vertexBounds g) , getElem g i j /= 0]
