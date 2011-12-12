@@ -2,6 +2,7 @@ module MultiGraph.Morphisms
     ( refine
     , canonicGraph
     , isIsomorphic
+    , automorphisms
     , isoUnique) where
 
 import Util
@@ -288,8 +289,8 @@ automorphisms p g = runST $ do
                 ams <- readSTRef automorphisms
                 if (checkNode (fst n) visited ams)
                    then nextNode (snd n)
-                                 (fst n:visited)
-                                 (indicator g (snd n):indicators)
+                                 (visited ++ [fst n])
+                                 (indicators ++ [indicator g (snd n)])
                    else do return ()
                  ---- changes here!!
                 (_, xx) <- readSTRef labels
@@ -305,9 +306,9 @@ automorphisms p g = runST $ do
             currentPV <- readSTRef currentP
             currentIV <- readSTRef currentI
             currentGV <- readSTRef currentG
-            let cmp (x,gx) (y,gy) | x == y && (getAdj gx) == (getAdj gy)   = do
+            let cmp (x,gx) (y,gy) | (x, getAdj gx) == (y, getAdj gy)   = do
                                          updateAutoM currentPV partition
-                                  | x < y  && (getAdj gx) < (getAdj gy)   = do
+                                  | (x, getAdj gx) < (y, getAdj gy)   = do
                                          writeSTRef currentP partition
                                          writeSTRef currentI indicators
                                          writeSTRef currentG cG
@@ -316,7 +317,7 @@ automorphisms p g = runST $ do
 
         let termNode = do
             let cG = relabelGraph g partition
-            if indicators == leafI && getAdj cG == getAdj leafG
+            if (indicators, getAdj cG) == (leafI, getAdj leafG)
                 then updateAutoM partition leafP
                 else update cG
 
