@@ -111,3 +111,11 @@ symTupleElem :: (Eq a) => (a, a) -> [(a,a)] -> Maybe (a, a)
 symTupleElem (e0, e1) l | (e0, e1) `elem` l = Just (e0, e1)
                         | (e1, e0) `elem` l = Just (e1, e0)
                         | otherwise = Nothing
+
+swap :: [a] -> Int -> Int -> [a]
+swap l i j | i > j  = swap l j i
+           | i == j = l
+           | i < j  = swapped
+     where (a,t) = splitAt i l
+           (b,c) = splitAt (j - i - 1) $ tail t
+           swapped = a ++ [l!!j] ++ b ++ [l!!i] ++ tail c
