@@ -1,9 +1,26 @@
+{-# LANGUAGE TypeFamilies #-}
 module Momentum where
 
 import Data.List
+import Algebra
 
--- representation of a vector of momenta
+{----------------------------------------------------------------------
+ -
+ - Momentum as a linear combination of basis elements
+ -
+ ----------------------------------------------------------------------}
+
 data Momentum e b = M [(b, e)] deriving (Eq, Ord)
+
+-- Momentum addition and module
+instance (Ord b, Num e) => AddGroup (Momentum e b) where
+    m1 .+. m2 = add m1 m2
+    neg (M ts) = M $ map (\(x,y) -> (x,-y)) ts
+    zero = M []
+
+instance (Ord b, Num e) => Module (Momentum e b) where
+    type Scalar (Momentum e b) = e
+    (*>)  s = fromList . map (\(x,y) -> (x,s*y)) . toList
 
 -- pretty printing
 instance (Num e, Show b) => Show (Momentum e b) where
@@ -38,10 +55,6 @@ instance Show MomentumLabel where
 momentumBasis :: Int -> Int -> [MomentumLabel]
 momentumBasis loops legs = map P [1..legs] ++ map Q [1..loops]
 
--- zero momentum
-zero :: Momentum elem basis
-zero = M []
-
 -- momentum from list, with simplification
 fromList :: (Ord b, Num e) => [(b,e)] -> Momentum e b
 fromList = simplify . M
@@ -52,7 +65,7 @@ toList (M ts) = ts
 
 -- coefficient of a specific basis element
 coefficient :: (Ord b, Num e) => b -> Momentum e b -> e
-coefficient b v = sum [k | (b', k) <- toList vsimp, b' == b]
+coefficient b v = Data.List.sum [k | (b', k) <- toList vsimp, b' == b]
     where vsimp = simplify v
 
 -- add momenta
@@ -67,18 +80,6 @@ add (M v1) (M v2) = M $ addMomenta v1 v2
                  GT -> (b,y) : addMomenta ((a,x):ts) us
           addMomenta [] v = v
           addMomenta v [] = v
-
--- subtract momenta
-subtr :: (Ord b, Num e) => Momentum e b -> Momentum e b -> Momentum e b
-subtr m1 m2 = add m1 (neg m2)
-
--- negate momentum
-neg :: (Num e) => Momentum e b -> Momentum e b
-neg (M ts) = M $ map (\(x,y) -> (x,-y)) ts
-
--- sum a list of momenta
-sumMomenta :: (Ord b, Num e) => [Momentum e b] -> Momentum e b
-sumMomenta = foldl (<+>) zero
 
 -- simplify the given momentum (combine duplicates, remove elements
 -- with coefficients == 0, sort with respect to basis)
@@ -97,14 +98,3 @@ simplify (M ts) = M $ simp $ sortBy compareFst ts
           simp [(b,x)] = [(b,x)]
           simp [] = []
           compareFst (b1,x1) (b2,x2) = compare b1 b2
-
--- operators
-infixl 6 <+>
-infixl 6 <->
-
-(<+>) :: (Ord b, Num e) => Momentum e b -> Momentum e b -> Momentum e b
-(<+>) = add
-
-(<->) :: (Ord b, Num e) => Momentum e b -> Momentum e b -> Momentum e b
-(<->) = subtr
-
