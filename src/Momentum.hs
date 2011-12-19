@@ -108,3 +108,11 @@ ratioMomentumToIntegral m = case mapM (ratioToIntegral) coeffs of
                                 Just x  -> fromList $ zip basis x
     where (basis, coeffs) = unzip $ toList m
 
+-- convert coefficients from integral to ratio
+momentumToRatioCoeffs :: (Integral a, Ord b) => Momentum a b -> Momentum (Ratio a) b
+momentumToRatioCoeffs = M . map (\(x,y) -> (x, y % 1)) . toList
+
+-- project out the coefficients with respect to a given one, no
+-- normalization to projectant!
+project :: (Ord b, Num e) => Momentum e b -> Momentum e b -> Momentum e b
+project m1 m2 = M $ map (\(x,y) -> (x, coefficient x m2) ) (toList m1)
