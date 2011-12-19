@@ -2,7 +2,9 @@
 module Momentum where
 
 import Data.List
+import Data.Ratio
 import Algebra
+import Util
 
 {----------------------------------------------------------------------
  -
@@ -98,3 +100,14 @@ simplify (M ts) = M $ simp $ sortBy compareFst ts
           simp [(b,x)] = [(b,x)]
           simp [] = []
           compareFst (b1,x1) (b2,x2) = compare b1 b2
+
+-- convert a momentum with rational coefficients with unit
+-- denominators to int. Helper to convert solutions of momentum linear
+-- systems.
+ratioMomentumToIntegral :: (Integral a, Ord b) =>
+                           Momentum (Ratio a) b -> Momentum a b
+ratioMomentumToIntegral m = case mapM (ratioToIntegral) coeffs of
+                                Nothing -> zero
+                                Just x  -> fromList $ zip basis x
+    where (basis, coeffs) = unzip $ toList m
+

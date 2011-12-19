@@ -2,6 +2,7 @@ module Util where
 
 import Data.List
 import Data.Array
+import Data.Ratio
 import qualified Data.Set as Set
 
 {----------------------------------------------------------------------
@@ -119,3 +120,9 @@ swap l i j | i > j  = swap l j i
      where (a,t) = splitAt i l
            (b,c) = splitAt (j - i - 1) $ tail t
            swapped = a ++ [l!!j] ++ b ++ [l!!i] ++ tail c
+
+-- convert a ratio to integral, in case the denominator is 1
+ratioToIntegral :: (Integral a) => Ratio a -> Maybe a
+ratioToIntegral x = if denominator x == 1
+                        then Just $ numerator x
+                        else Nothing
