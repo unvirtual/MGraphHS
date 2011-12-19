@@ -2,6 +2,7 @@ module MultiGraph.DFS
     ( reachableNodes
     , isConnected
     , nCycles
+    , fstInChordCycles
     , trivialCycleNodes
     , depthFirstForest) where
 
@@ -44,7 +45,7 @@ isConnected gr = length (reachableNodes gr (head vv)) == length vv
 
 -- determine the number of loops in thq QFT sense
 nCycles :: MultiGraph -> Int
-nCycles g = nLoops g + nChordCycles g
+nCycles g = nLoops g + length (fstInChordCycles g)
 
 trivialCycleNodes :: MultiGraph -> [[Node]]
 trivialCycleNodes = map flatten . depthFirstForest
@@ -95,12 +96,14 @@ depthFirstSearch g v = filterForest bnds (map (`graphToTree` g) v) falseArr
 depthFirstForest :: MultiGraph -> Forest Node
 depthFirstForest g = depthFirstSearch g (nodes g)
 
--- determine the number of chord cycles
-nChordCycles :: MultiGraph -> Int
-nChordCycles g = runST $ do
+-- return the first edge in each cycle. Length of result corresponds to the
+-- total number of cycles
+fstInChordCycles :: MultiGraph -> [Edge]
+fstInChordCycles g = runST $ do
     arr <- STA.newArray (nodeBounds g) False :: ST s (STA.STUArray s Node Bool)
     edgs <- newSTRef (edges g)
     cycles <- newSTRef 0
+    cycleFirstEdges <- newSTRef []
 
     let updateEdges v v0 = do
          e <- readSTRef edgs
@@ -114,7 +117,9 @@ nChordCycles g = runST $ do
          seenNode <- STA.readArray arr v
          updatedEdge <- updateEdges v0 v
          if seenNode
-             then when updatedEdge $ do modifySTRef cycles (+1)
+             then when updatedEdge $ do 
+                      modifySTRef cycles (+1)
+                      modifySTRef cycleFirstEdges ((v0,v):)
              else do STA.writeArray arr v True
 
     let findNCycles v = do let adj = filter (\x -> x /= v) $ adjNodesWReps v g
@@ -122,5 +127,5 @@ nChordCycles g = runST $ do
 
     let order = concatMap preorder $ depthFirstForest g
     mapM (findNCycles) order
-    c <- readSTRef cycles
+    c <- readSTRef cycleFirstEdges
     return c
