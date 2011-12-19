@@ -1,26 +1,4 @@
-module MultiGraph
-             ( Node
-             , Edge
-             , Bounds
-             , MultiGraph (MultiGraph)
-             , Row
-             , adjCompare
-             , getAdj
-             , isNeighbour
-             , degreeNeighbour
-             , createGraph
-             , hasLoops
-             , nLoops
-             , nodes
-             , nNodes
-             , edges
-             , adjacency
-             , adjNodes
-             , adjNodesWReps
-             , nodeBounds
-             , permuteGraphSymm
-             , degree
-             , degreeSequence) where
+module MultiGraph where
 
 import Control.Monad.State
 import Data.Tree
