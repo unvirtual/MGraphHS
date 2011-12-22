@@ -3,6 +3,7 @@ module LinearSolve (linearSolve) where
 
 import Util
 import Algebra
+import Debug.Trace
 
 {----------------------------------------------------------------------
  -
@@ -46,7 +47,7 @@ reduceRow x@(m,b) r = (take r swMat ++ [normrow] ++ matRest,
           normrow = map (\x -> x / (row!!r)) row
           subtractInRow nrow i r = zipWith (\x y -> (r!!i)*x - y) nrow r
           subtractInB c n = zipWith (\x y -> x *> n .-. y) c
-          col = map (\x -> m!!x!!r) [r..length m - 1]
+          col = map (\x -> swMat!!x!!r) [r..length m - 1]
 
           matRest = map (subtractInRow normrow r) $ drop (r+1) swMat
           bRest   = subtractInB (tail col) firstB $ drop (r+1) swB
