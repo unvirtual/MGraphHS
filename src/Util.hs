@@ -3,7 +3,9 @@ module Util where
 import Data.List
 import Data.Array
 import Data.Ratio
+import Data.Ord
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 
 {----------------------------------------------------------------------
  -
@@ -107,6 +109,11 @@ removeFirst _ []                 = []
 removeFirst x (y:ys) | x == y    = ys
                      | otherwise = y : removeFirst x ys
 
+removeFirstSymTuple _ []                 = []
+removeFirstSymTuple (x1,x2) ((y1,y2):ys)
+    | (x1,x2) == (y1,y2) || (x1,x2) == (y2,y1) = ys
+    | otherwise = (y1,y2) : removeFirstSymTuple (x1,x2) ys
+
 -- return the tuple if it exists in the list, regardless of order
 symTupleElem :: (Eq a) => (a, a) -> [(a,a)] -> Maybe (a, a)
 symTupleElem (e0, e1) l | (e0, e1) `elem` l = Just (e0, e1)
@@ -126,3 +133,21 @@ ratioToIntegral :: (Integral a) => Ratio a -> Maybe a
 ratioToIntegral x = if denominator x == 1
                         then Just $ numerator x
                         else Nothing
+
+-- split a list, fst fulfils the predicate
+splitBy :: (a -> Bool) -> [a] -> ([a], [a])
+splitBy f = foldr (\x (af,bf) -> if (f x) then (x:af, bf) else (af, x:bf)) ([],[])
+
+-- sort a map with respect to a given list of keys. In case of a
+-- multimap, the order of equal keys is arbitrary
+sortByList :: Ord a => [(a,b)] -> [a] -> [(a,b)]
+sortByList xs ys = map snd $ sortBy (comparing fst) [(pos (fst x), x) | x <- xs]
+    where order = Map.fromList $ zip ys [1..]
+          pos x = Map.findWithDefault 0 x order
+
+-- replace values in a map
+replaceInMap :: (Eq a) => [(a,a)] -> [(b,a)] -> [(b,a)]
+replaceInMap _ [] = []
+replaceInMap map (l:ls) = case lookup (snd l) map of
+                              Just x  -> (fst l, x):replaceInMap map ls
+                              Nothing -> l:replaceInMap map ls
