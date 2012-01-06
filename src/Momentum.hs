@@ -117,3 +117,17 @@ momentumToRatioCoeffs = M . map (\(x,y) -> (x, y % 1)) . toList
 -- normalization to projectant!
 project :: (Ord b, Num e) => Momentum e b -> Momentum e b -> Momentum e b
 project m1 m2 = M $ map (\(x,y) -> (x, coefficient x m2) ) (toList m1)
+
+subspaceDiagonal :: (Num e) => Int -> MomentumName -> Momentum e MomentumLabel
+subspaceDiagonal n l = M (zip (map (\x -> ML l x) [1..n]) (repeat 1))
+
+subspaceBasis :: (Num e) => Int -> MomentumName -> [Momentum e MomentumLabel]
+subspaceBasis n l = map (\x -> M [x]) (zip (map (\x -> ML l x) [1..n]) (repeat 1))
+
+parallelTo :: Momentum a MomentumLabel -> Maybe MomentumName
+parallelTo (M [(ML n _, _)]) = Just n
+parallelTo _                 = Nothing
+
+momentum :: MomentumName -> Int -> Momentum Int MomentumLabel
+momentum m i = M [(ML m i, 1)]
+
