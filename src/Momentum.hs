@@ -47,12 +47,13 @@ instance (Num e, Show b) => Show (Momentum e b) where
                                    | otherwise = isSingleExpr' cs
 
 -- momentum labeling -> p1,p2,... for external, q1,q2,... for internal
-data MomentumLabel = P Int | Q Int | X Int deriving (Eq, Ord)
+data MomentumName = P | Q | X deriving (Eq, Ord, Show) 
+data MomentumLabel = ML MomentumName Int deriving (Eq, Ord)
 
 instance Show MomentumLabel where
-    show (P i) = "p" ++ show i
-    show (Q i) = "q" ++ show i
-    show (X i) = "x" ++ show i
+    show (ML P i) = "p" ++ show i
+    show (ML Q i) = "q" ++ show i
+    show (ML X i) = "x" ++ show i
 
 -- momentum from list, with simplification
 fromList :: (Ord b, Num e) => [(b,e)] -> Momentum e b
