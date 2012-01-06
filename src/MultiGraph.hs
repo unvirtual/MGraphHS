@@ -31,7 +31,6 @@ instance Eq MultiGraph where
 instance Ord MultiGraph where
     x `compare` y =  getAdj x `compare` getAdj y
 
-
 createGraph :: [Edge] -> MultiGraph
 createGraph edges = MultiGraph bounds $ V.unfoldr buildAdj (range bounds)
     where bounds = (minimum vl, maximum vl)
@@ -59,6 +58,9 @@ nNodes g = snd v - fst v + 1
 hasLoops :: MultiGraph -> Bool
 hasLoops g = any (0 /=) [getElem g i i | i <- nodes g]
 
+-- return loop edges
+loopEdges :: MultiGraph -> [Edge]
+loopEdges g = concat [replicate (getElem g i i) (i,i) | i <- nodes g]
 
 -- give the number of loops
 nLoops :: MultiGraph -> Int
@@ -76,6 +78,32 @@ internalNodes g = filter (\x -> not $ x `elem` external) $ nodes g
 -- all edges of a graph
 edges :: MultiGraph -> [Edge]
 edges g = concat [replicate (getElem g i j) (i, j) | i <- nodes g, j <- range (i, snd $ nodeBounds g) , getElem g i j /= 0]
+
+-- returns the direction of the edge if it is external in the graph, 0
+-- otherwise
+isExternalEdge :: MultiGraph -> Edge -> Int
+isExternalEdge g (n0,n1) | n0 `elem` extNodes = 1
+                         | n1 `elem` extNodes = -1
+                         | otherwise = 0
+    where extNodes = externalNodes g
+
+-- direction of an edge with respect to a node                                                              
+edgeDirection :: Node -> Edge -> Int
+edgeDirection n (n0,n1) | n == n0   = -1
+                        | n == n1   = 1
+                        | otherwise = 0
+
+-- edges at a give node together with direction
+nodeEdges :: Node -> MultiGraph -> [(Edge, Int)]
+nodeEdges n = filter ((/=) 0 . snd) . map (\x -> (x, edgeDirection n x)) . edges
+
+-- return external edges
+externalEdges :: MultiGraph -> [Edge]
+externalEdges g = filter ((/=) 0 . isExternalEdge g) (edges g)
+
+-- return internal edges
+internalEdges :: MultiGraph -> [Edge]
+internalEdges g = filter ((==) 0 . isExternalEdge g) (edges g)
 
 -- adjacent nodes to a given node
 adjNodes :: Node -> MultiGraph -> Row
