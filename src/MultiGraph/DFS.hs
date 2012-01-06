@@ -45,7 +45,7 @@ isConnected gr = length (reachableNodes gr (head vv)) == length vv
 
 -- determine the number of loops in thq QFT sense
 nCycles :: MultiGraph -> Int
-nCycles g = nLoops g + length (fstInChordCycles g)
+nCycles = length . fstInChordCycles
 
 trivialCycleNodes :: MultiGraph -> [[Node]]
 trivialCycleNodes = map flatten . depthFirstForest
@@ -99,7 +99,10 @@ depthFirstForest g = depthFirstSearch g (nodes g)
 -- return the first edge in each cycle. Length of result corresponds to the
 -- total number of cycles
 fstInChordCycles :: MultiGraph -> [Edge]
-fstInChordCycles g = runST $ do
+fstInChordCycles g = fstInNontrivialCycles g ++ loopEdges g
+
+fstInNontrivialCycles :: MultiGraph -> [Edge]
+fstInNontrivialCycles g = runST $ do
     arr <- STA.newArray (nodeBounds g) False :: ST s (STA.STUArray s Node Bool)
     edgs <- newSTRef (edges g)
     cycles <- newSTRef 0
@@ -117,7 +120,7 @@ fstInChordCycles g = runST $ do
          seenNode <- STA.readArray arr v
          updatedEdge <- updateEdges v0 v
          if seenNode
-             then when updatedEdge $ do 
+             then when updatedEdge $ do
                       modifySTRef cycles (+1)
                       modifySTRef cycleFirstEdges ((v0,v):)
              else do STA.writeArray arr v True
