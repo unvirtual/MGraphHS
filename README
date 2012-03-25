@@ -1,8 +1,8 @@
-FeynGHS
--------
+MGraphHS
+--------
 
-Work in progress for a general Feynman diagram generator
+Utilities for generation and testing of multi graphs
 
-v 0.0.1: * undirected graph generation by degree sequence
-         * connectedness test
-         * isomorphism tests of undirected graphs
+* undirected multigraph generation by degree sequence
+* connectedness test
+* isomorphism tests of undirected multigraphs
